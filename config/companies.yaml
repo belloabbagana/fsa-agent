@@ -1,24 +1,21 @@
 # Companies in scope. conflict_check records ONLY pass/fail (rule 3): no details, ever.
-# A company with anything other than "pass" must not be analysed or published.
+# A company whose conflict_check is not "pass" must not be analysed or published.
+# v1 scope (changed 2026-11-23): two core companies, each with its own industry peer set.
 companies:
   - ticker: DANGCEM
     name: Dangote Cement Plc
     role: core
+    industry_peer_set: cement          # peers to be listed and approved by Bello
     sector_module: cement
     fiscal_year_end: "12-31"
     conflict_check: pass
     conflict_check_date: 2026-11-23
-  - ticker: NESTLE
-    name: Nestle Nigeria Plc
+  - ticker: PRESCO
+    name: Presco Plc
     role: core
-    sector_module: consumer_staples
+    industry_peer_set: palm_oil_agri   # peers to be listed and approved by Bello
+    sector_module: agriculture
     fiscal_year_end: "12-31"
     conflict_check: pass
     conflict_check_date: 2026-11-23
-  - ticker: NB
-    name: Nigerian Breweries Plc
-    role: core
-    sector_module: consumer_staples
-    fiscal_year_end: "12-31"
-    conflict_check: pass
-    conflict_check_date: 2026-11-23
+  # Deferred (not in v1 scope): NESTLE, NB. Conflict-check results for these are kept out of the file on purpose.

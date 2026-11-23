@@ -16,3 +16,6 @@ __pycache__/
 
 # Private notes (employer details etc.): never published
 private/
+
+# Inbox for raw NGN Market CSV exports (third-party data, never published)
+companies financial reports/

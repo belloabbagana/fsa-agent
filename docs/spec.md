@@ -15,8 +15,8 @@ Two modes share one engine:
 | # | Topic | Decision |
 | --- | --- | --- |
 | 1 | Mode first | Mode A. A small helper fetches annual reports via connected tools and logs each source; the engine takes a folder of documents |
-| 2 | Sectors | Non-financial corporates: **Food & Beverage** and **Cement** in v1. Banks and insurers are marked "not yet supported" |
-| 2 | Core companies | **Dangote Cement, Nestlé Nigeria, Nigerian Breweries** (subject to the conflict check) |
+| 2 | Sectors | Non-financial corporates: **Cement** and **Palm oil / agricultural products** in v1. Banks and insurers are marked "not yet supported" |
+| 2 | Core companies | **Dangote Cement, Presco** (changed 23 Nov 2026; Nestlé Nigeria and Nigerian Breweries deferred) (subject to the conflict check) |
 | 3 | Work split | Claude builds the plumbing; Bello owns `rules/` |
 | 4 | v1 done | About 12 weeks: 3 full reports, 1 back-test case study, public repo, Streamlit demo |
 | 5 | Regularise | Two separate outputs: **standardised** statements, then a separate **analyst-adjusted** view (one-offs out, FX below operating profit, EBITDA pre/post IFRS 16, capitalised interest added back; each adjustment logged and switchable). Plus a **USD-translated** view |
@@ -61,7 +61,7 @@ Two modes share one engine:
 
 - **Classification:** GICS sector (11), industry group (25) and sub-industry where it changes the analysis, with reason and confidence. Conglomerates show a segment split, and major segments are analysed separately.
 - **Market-wide data layer (new, early):** every NGX-listed company from NGN Market (full history) is loaded into DuckDB and mapped to GICS. That gives industry ratio comps (median, quartiles, count) by GICS industry group and sub-industry, by year.
-- **Core-company deep analysis:** annual-report PDFs for the 3 core companies are extracted to a corporate chart of accounts, checked, and reconciled to NGN Market. Disagreements are flagged, never silently resolved.
+- **Core-company deep analysis:** annual-report PDFs for the 2 core companies are extracted to a corporate chart of accounts, checked, and reconciled to NGN Market. Disagreements are flagged, never silently resolved.
 - **Integrity checks:** the balance sheet balances; the cash flow reconciles to balance-sheet movements; notes sum to the face statements; comparatives match the prior-year report (a mismatch may be an undisclosed restatement).
 - **Data-quality grade:** High, Moderate or Low, shown at the top of each report.
 - **Three outputs per company:** standardised, analyst-adjusted and USD-translated, all traceable to source.
@@ -93,8 +93,8 @@ Mode B, banks and insurers, quarterly/interim/TTM analysis, cost-of-capital comp
 ### v1 is done when
 
 - The market-wide layer covers all NGX companies, with GICS-mapped industry comps.
-- 3 core reports with JSON pass Bello's review, with every quote code-verified.
-- Integrity checks pass, or failures are explained, for all 9 core company-years.
+- 2 core reports with JSON pass Bello's review, with every quote code-verified.
+- Integrity checks pass, or failures are explained, for all 6 core company-years.
 - One back-test case study is written.
 - The Streamlit demo runs on sample data, and the answer-and-re-run loop works.
 

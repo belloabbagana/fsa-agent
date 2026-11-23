@@ -20,7 +20,7 @@ fsa-agent/
 │   ├── ratios.yaml            formula, definition, N/M conditions
 │   ├── adjustments.yaml       analyst adjustments, each switchable
 │   ├── findings/              triggers and materiality per section
-│   ├── sectors/               consumer_staples.yaml, cement.yaml
+│   ├── sectors/               cement.yaml, agriculture.yaml
 │   └── agent_instructions.md
 ├── src/fsa/                   CLAUDE'S: the plumbing
 │   ├── ingest/                NGN Market loader, PDF fetcher, source log
@@ -59,7 +59,7 @@ The market-wide NGN Market layer comes first, so there's a visible result (GICS 
 | 6 | Adjusted and USD views, forensic scores | Decide each analyst adjustment | Adjustments, USD translation, Beneish, Altman Z'', Sloan; Sharia input fields | Three separate views per core company; scores vs GICS peers |
 | 7 | Findings engine | Write triggers and materiality rules | Rules engine; Sonnet writer; quote checker | Draft findings in the brief's format for Dangote Cement |
 | 8 | Report + JSON + review | Review the first full report hard | A–M report, ratings, `report.v1.json`, Opus review | One complete report Bello would show |
-| 9 | All three core companies | Review Nestlé and Nigerian Breweries | Fix what reviews find | 3 reports pass review |
+| 9 | Both core companies | Review Presco | Fix what reviews find | 2 reports pass review |
 | 10 | Streamlit app | Test answer and re-run | Report viewer, answer form, re-run, version log; sample-data demo | A finding updates after an answer, with a logged version |
 | 11 | Back-test | Choose the case (older-year data must exist; NGN Market history helps) | Run the pipeline on the case company and matched peers | Back-test results ready |
 | 12 | Publish | Write the case study and method page; final README for the CV | Deploy the demo; tidy the repo | Public repo, live demo, case study and method page |
@@ -71,7 +71,7 @@ The market-wide NGN Market layer comes first, so there's a visible result (GICS 
 The goal is a safe, working setup with data starting to land. No analysis yet.
 
 **Before the session (Bello, on his own):**
-- [ ] Conflict check for Dangote Cement, Nestlé Nigeria and Nigerian Breweries. Bring only pass or fail.
+- [ ] Conflict check for Dangote Cement and Presco. Bring only pass or fail.
 - [ ] Log in to NGN Market and check two things: (a) how to export all companies' statements to CSV/Excel, and whether the plan includes the Developer API; (b) what the Terms of Service say about redistribution and derived data.
 
 **In the session (Claude Code leads, one step at a time):**
