@@ -5,6 +5,7 @@ description = "Financial statement analysis agent for NGX-listed companies (educ
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.1",
+    "pdfplumber>=0.11.11",
     "pyyaml>=6.0",
 ]
 

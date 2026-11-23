@@ -73,3 +73,48 @@ CREATE OR REPLACE VIEW statement_lines_current AS
     SELECT s.* FROM statement_lines s JOIN source_files f USING (source_id) WHERE f.is_current;
 CREATE OR REPLACE VIEW provider_ratios_current AS
     SELECT r.* FROM provider_ratios r JOIN source_files f USING (source_id) WHERE f.is_current;
+
+-- Statement lines extracted from an audited annual-report PDF (no model involved: code only).
+CREATE TABLE IF NOT EXISTS pdf_statement_lines (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,      -- the report's year
+    statement     VARCHAR NOT NULL,      -- profit_or_loss | comprehensive_income | financial_position | cash_flows
+    seq           INTEGER NOT NULL,      -- order of the line on the page
+    section       VARCHAR,               -- last heading above the line, e.g. "Current liabilities"
+    label         VARCHAR NOT NULL,      -- as printed ('' for an unlabelled subtotal)
+    note_ref      VARCHAR,
+    entity        VARCHAR NOT NULL,      -- group | company
+    period_end    DATE NOT NULL,
+    value         DOUBLE,                -- in the statement's unit; NULL if not readable
+    unit          VARCHAR,               -- NGN_million | NGN_per_share
+    value_flag    VARCHAR NOT NULL,      -- ok | reported_nil (printed as a dash) | unreadable
+    page          INTEGER NOT NULL,
+    source_id     VARCHAR NOT NULL
+);
+
+-- NGN Market vs the audited PDF. Differences are recorded, never silently resolved.
+CREATE TABLE IF NOT EXISTS reconciliation (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    provider_metric VARCHAR NOT NULL,
+    pdf_label     VARCHAR NOT NULL,
+    pdf_value     DOUBLE,                -- NGN
+    provider_value DOUBLE,               -- NGN
+    difference    DOUBLE,
+    status        VARCHAR NOT NULL,      -- match | differs | not_comparable
+    checked_at    TIMESTAMP DEFAULT current_timestamp
+);
+
+-- Results of arithmetic checks on an extracted statement.
+CREATE TABLE IF NOT EXISTS integrity_checks (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    statement     VARCHAR NOT NULL,
+    entity        VARCHAR NOT NULL,
+    period_end    DATE NOT NULL,
+    check_name    VARCHAR NOT NULL,
+    expected      DOUBLE,
+    actual        DOUBLE,
+    status        VARCHAR NOT NULL,      -- pass | fail
+    checked_at    TIMESTAMP DEFAULT current_timestamp
+);

@@ -1,0 +1,79 @@
+# Arithmetic identities that must hold inside each extracted statement (draft by Claude, for Bello to review).
+# Each check says: this TOTAL line equals the sum of these PARTS, as printed (signs as in the filing).
+#   "Label"            a line, matched on its printed label (case-insensitive)
+#   "Label@Section"    the same label under a section heading (needed when a label repeats)
+#   "A|B"              alternative wordings of the same line (labels change between years)
+#   "?Label"           a line this filing may not print; if absent it adds nothing (and the report says so)
+#   "#13" / "#1..#12"  line numbers on the statement page (for unlabelled subtotals and wrapped labels)
+# Each check runs for Group and Company, for both years shown. A failure means: examine, do not assume an error.
+# The cash flow layout differs between reports, so each year says which layout it uses.
+DANGCEM:
+  FY2025: &fy2025
+    profit_or_loss: &pl
+      - {name: gross_profit,        total: "Gross profit", parts: ["Revenue", "Production cost of sales"]}
+      - {name: operating_profit,    total: "Profit from operating activities",
+         parts: ["Gross profit", "Administrative expenses", "Selling and distribution expenses", "Other income", "?Impairment of financial assets"]}
+      - {name: profit_before_tax,   total: "Profit before tax",
+         parts: ["Profit from operating activities", "Finance income", "Finance costs", "?Gain on net monetary position", "?Share of profit from associate"]}
+      - {name: profit_for_year,     total: "Profit for the year", parts: ["Profit before tax", "Income tax expense"]}
+      - {name: attribution,         total: "Profit for the year", parts: ["Owners of the Company", "Non-controlling Interests"]}
+    financial_position: &sfp
+      - {name: non_current_assets,  total: "Total non-current assets",
+         parts: ["Property, plant and equipment", "Intangible assets", "Right-of-use assets", "?Investments in subsidiaries", "?Investment in associate",
+                 "?Lease receivables@Non-current assets", "?Deferred tax assets", "?Prepayments@Non-current assets", "?Receivables from related parties|Receivables from subsidiaries"]}
+      - {name: current_assets,      total: "Total current assets",
+         parts: ["Inventories", "Trade and other receivables", "Prepayments and other current assets", "?Lease receivables@Current assets", "?Current tax assets", "Cash and cash equivalents"]}
+      - {name: total_assets,        total: "Total assets", parts: ["Total non-current assets", "Total current assets"]}
+      - {name: current_liabilities, total: "Total current liabilities",
+         parts: ["Trade and other payables", "?Lease liabilities@Current liabilities", "?Current tax liabilities", "Financial liabilities@Current liabilities", "?Other current liabilities"]}
+      - {name: non_current_liabilities, total: "Total non-current liabilities",
+         parts: ["Deferred tax liabilities", "Financial liabilities@Non-current liabilities", "?Lease liabilities@Non-current liabilities", "?Provisions", "?Deferred revenue", "?Employee benefit obligations"]}
+      - {name: total_liabilities,   total: "Total liabilities", parts: ["Total current liabilities", "Total non-current liabilities"]}
+      - {name: net_assets,          total: "Net assets", parts: ["Total assets"], minus: ["Total liabilities"]}
+      - {name: owners_equity,       total: "Equity attributable to owners of the Company",
+         parts: ["Share capital", "Share premium", "Treasury shares", "Capital contribution", "Currency translation reserve", "Retained earnings"]}
+      - {name: total_equity,        total: "Total equity", parts: ["Equity attributable to owners of the Company", "Non-controlling interest"]}
+      - {name: balance_sheet_balances, total: "Total equity and liabilities", parts: ["Total equity", "Total liabilities"]}
+      - {name: assets_equal_funding, total: "Total assets", parts: ["Total equity and liabilities"]}
+    cash_flows:      # layout A: lease receivables sit inside "changes in" (before subtotal #20)
+      - {name: operating_before_working_capital, total: "#13", parts: ["#1..#12"]}
+      - {name: operating_after_working_capital,  total: "#20", parts: ["#13", "#14..#19"]}
+      - {name: net_operating,       total: "Net cash generated from operating activities", parts: ["#20", "#21"]}
+      # Lines #31-#33 are the build-up of #30 (acquisition of PPE = additions + suppliers' credit + change in prepayments),
+      # not separate cash flows. The two checks below only both pass if that reading is right.
+      - {name: net_investing,       total: "Net cash generated from/(used in) investing activities", parts: ["#23..#30"]}
+      - {name: ppe_acquisition_buildup, total: "#30", parts: ["#31..#33"]}
+      - {name: net_financing,       total: "Net cash used in financing activities", parts: ["#35..#39"]}
+      - {name: net_change_in_cash,  total: "Increase/(decrease) in cash and cash equivalents",
+         parts: ["Net cash generated from operating activities", "Net cash generated from/(used in) investing activities", "Net cash used in financing activities"]}
+      - {name: closing_cash,        total: "#44", parts: ["#41", "#42", "#43"]}
+  FY2024: &fy2024
+    profit_or_loss: *pl
+    financial_position: *sfp
+    cash_flows: &cf_b   # layout B: subtotal #19 comes before lease receivables (#20) and tax (#21)
+      - {name: operating_before_working_capital, total: "#13", parts: ["#1..#12"]}
+      - {name: operating_after_working_capital,  total: "#19", parts: ["#13", "#14..#18"]}
+      - {name: net_operating,       total: "Net cash generated from operating activities", parts: ["#19", "#20", "#21"]}
+      - {name: net_investing,       total: "Net cash used in investing activities|Net cash generated from/(used in) investing activities", parts: ["#23..#30"]}
+      - {name: ppe_acquisition_buildup, total: "#30", parts: ["#31..#32"]}
+      - {name: net_financing,       total: "Net cash used in financing activities|Net cash generated from/(used in) financing activities", parts: ["#34..#39"]}
+      - {name: net_change_in_cash,  total: "Increase/(decrease) in cash and cash equivalents",
+         parts: ["Net cash generated from operating activities",
+                 "Net cash used in investing activities|Net cash generated from/(used in) investing activities",
+                 "Net cash used in financing activities|Net cash generated from/(used in) financing activities"]}
+      - {name: closing_cash,        total: "#44", parts: ["#41", "#42", "#43"]}
+  FY2023:
+    profit_or_loss: *pl
+    financial_position: *sfp
+    cash_flows:         # layout C: as B, plus an extra investing line (#33 "Net suppliers' credit"), so later lines shift by one
+      - {name: operating_before_working_capital, total: "#13", parts: ["#1..#12"]}
+      - {name: operating_after_working_capital,  total: "#19", parts: ["#13", "#14..#18"]}
+      - {name: net_operating,       total: "Net cash generated from operating activities", parts: ["#19", "#20", "#21"]}
+      - {name: net_investing,       total: "Net cash used in investing activities|Net cash generated from/(used in) investing activities", parts: ["#23..#30"]}
+      - {name: ppe_acquisition_buildup, total: "#30", parts: ["#31..#33"]}
+      - {name: net_financing,       total: "Net cash used in financing activities|Net cash generated from/(used in) financing activities", parts: ["#35..#40"]}
+      - {name: net_change_in_cash,  total: "Increase/(decrease) in cash and cash equivalents",
+         parts: ["Net cash generated from operating activities",
+                 "Net cash used in investing activities|Net cash generated from/(used in) investing activities",
+                 "Net cash used in financing activities|Net cash generated from/(used in) financing activities"]}
+      - {name: closing_cash,        total: "#45", parts: ["#42", "#43", "#44"]}
