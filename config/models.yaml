@@ -1,0 +1,7 @@
+# Which Claude model runs each pipeline step (Pro plan via Agent SDK; no API key).
+extract: none          # PDF table extraction is pure code
+map_line_items: haiku
+draft_gics: haiku
+write_analysis: sonnet
+review_findings: opus
+fable_review: off      # costs usage credits on Pro

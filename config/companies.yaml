@@ -1,0 +1,24 @@
+# Companies in scope. conflict_check records ONLY pass/fail (rule 3): no details, ever.
+# A company with anything other than "pass" must not be analysed or published.
+companies:
+  - ticker: DANGCEM
+    name: Dangote Cement Plc
+    role: core
+    sector_module: cement
+    fiscal_year_end: "12-31"
+    conflict_check: pass
+    conflict_check_date: 2026-11-23
+  - ticker: NESTLE
+    name: Nestle Nigeria Plc
+    role: core
+    sector_module: consumer_staples
+    fiscal_year_end: "12-31"
+    conflict_check: pass
+    conflict_check_date: 2026-11-23
+  - ticker: NB
+    name: Nigerian Breweries Plc
+    role: core
+    sector_module: consumer_staples
+    fiscal_year_end: "12-31"
+    conflict_check: pass
+    conflict_check_date: 2026-11-23

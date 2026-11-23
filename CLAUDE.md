@@ -1,0 +1,24 @@
+# CLAUDE.md: FSA Agent working agreement
+
+Full spec: `docs/spec.md` · Plan: `docs/plan.md` · Agent instructions: `rules/agent_instructions.md`
+
+## Working agreement
+
+- **Bello is new to coding.** Claude writes all the code. Before each step, explain in plain English what you're about to do and why. After each step, say what changed and how to check it. Give every terminal command one at a time, with what it does.
+- **Bello owns the analysis layer.** Ratio definitions, thresholds, adjustments, what triggers a finding, materiality and sector rules live in plain-text YAML files under `rules/`. Claude drafts them, explains each choice in CFA terms, and Bello decides. Code never hard-codes an analytical judgement that belongs in `rules/`.
+- **Time:** about 10 hours a week. Keep sessions to 1–2 hours with a clear "done when" at the end of each.
+- **Machine:** Mac. Everything runs locally. No local LLMs in v1.
+- **Claude usage:** Claude Agent SDK and `claude -p`, signed in with Bello's **Pro plan**. There's no API bill and no API key for Claude in v1. Pro limits reset every 5 hours and every week, so design runs to resume cleanly if paused.
+- **Models per step:** no model for PDF parsing; **Haiku** for line-item mapping and GICS drafting; **Sonnet** for the first full analysis; **Opus** to review the most material findings. **Fable off** by default; on Pro it costs usage credits. Model choice per step lives in `config/models.yaml`.
+- **Budget for add-ons:** zero in v1, beyond the NGN Market Premium plan Bello has already bought.
+
+### Non-negotiable rules
+
+1. **Public repo, nothing private in it.** No API keys, passwords, tokens or cookies. No material non-public information, including anything Bello knows through work, even indirectly. Nothing from my employer or its clients. Secrets live only in `.env` (git-ignored). Gitleaks runs as a pre-commit hook, and GitHub secret scanning and push protection are switched on.
+2. **No raw third-party data in the repo.** `data/` and `reports/` are git-ignored. NGN Market data stays on Bello's Mac unless its Terms of Service allow publication. The public demo uses a small sample, and only what the terms permit.
+3. **Conflict check before any company.** Before a company is analysed or published, Bello confirms it is not a client or prospect of his employer that he has worked on. He records only pass or fail in `config/companies.yaml`, with no details.
+4. **Every number cites its source:** document, page and note, or the NGN Market field and download date. Text findings quote the passage, and code verifies the quote exists before keeping it.
+5. **Facts, calculations and interpretation stay separate.** Code does all arithmetic; models never calculate. N/M where a ratio is meaningless.
+6. **Findings are items to examine, never accusations.** No buy, sell or hold. Published material says "educational analysis, not investment advice" and links to source PDFs instead of copying them.
+7. **Say when data is insufficient.** Never guess, never treat missing as zero.
+8. **Never log in to websites with Bello's passwords.** Bello downloads NGN Market exports himself, or puts an NGN Market API key in `.env` if his plan includes the API.
