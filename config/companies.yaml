@@ -18,4 +18,16 @@ companies:
     fiscal_year_end: "12-31"
     conflict_check: pass
     conflict_check_date: 2026-11-23
+  # ---- Approved peer sets (Bello, 2026-11-23). Source of classification: NGN Market sector data.
+  # Peers are stored with conflict_check "unchecked": Bello confirms pass/fail before any peer is analysed or published.
+  # Cement (small set of 3: supplement with emerging-market industry data where needed)
+  - {ticker: BUACEMENT,  name: BUA Cement Plc,                    role: peer, industry_peer_set: cement,        fiscal_year_end: null, conflict_check: unchecked}
+  # HBMNG = formerly Lafarge Africa (WAPCO), now Huaxin-owned
+  - {ticker: HBMNG,      name: HBM Nigeria Plc, role: peer, industry_peer_set: cement, fiscal_year_end: null, conflict_check: unchecked}
+  # Palm oil / agriculture (true palm-oil peers are only Presco and Okomu)
+  - {ticker: OKOMUOIL,   name: The Okomu Oil Palm Company Plc,    role: peer, industry_peer_set: palm_oil_agri, fiscal_year_end: null, conflict_check: unchecked}
+  - {ticker: ELLAHLAKES, name: Ellah Lakes Plc,                   role: peer, industry_peer_set: palm_oil_agri, fiscal_year_end: null, conflict_check: unchecked}
+  - {ticker: FTNCOCOA,   name: FTN Cocoa Processors Plc,          role: peer, industry_peer_set: palm_oil_agri, fiscal_year_end: null, conflict_check: unchecked}
+  - {ticker: ZICHIS,     name: Zichis Agro Allied Industries Plc, role: peer, industry_peer_set: palm_oil_agri, fiscal_year_end: null, conflict_check: unchecked}
+  - {ticker: LIVESTOCK,  name: Livestock Feeds Plc,               role: peer, industry_peer_set: palm_oil_agri, fiscal_year_end: null, conflict_check: unchecked, optional: true}
   # Deferred (not in v1 scope): NESTLE, NB. Conflict-check results for these are kept out of the file on purpose.
