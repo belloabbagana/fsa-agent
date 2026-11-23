@@ -70,15 +70,14 @@ def cmd_extract_pdf(args) -> None:
     con.execute("INSERT INTO source_files (source_id, sha256, file_name, provider, ticker, view, downloaded) VALUES (?,?,?,?,?,?,?)",
                 [source_id, sha, pdf.name, "annual_report", ticker, "pdf", date.fromisoformat(meta["downloaded"])])
     statements = extract_statements(pdf, fy)
-    entities = ["group", "group", "company", "company"]
     out_rows = []
-    for name, (page, dates, unit, lines) in statements.items():
+    for name, (page, columns, unit, lines) in statements.items():
         for ln in lines:
-            for (value, flag), ent, pend in zip(ln.values, entities, dates):
-                u = "NGN_per_share" if "(naira)" in ln.label.lower() else unit
+            for (value, flag), (ent, pend) in zip(ln.values, columns):
+                u = "NGN_per_share" if "(naira)" in ln.label.lower() else ("KOBO_per_share" if "(kobo)" in ln.label.lower() else unit)
                 con.execute("INSERT INTO pdf_statement_lines VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             [ticker, fy, name, ln.seq, ln.section, ln.label, ln.note_ref, ent, pend, value, u, flag, page, source_id])
-                out_rows.append([name, page, ln.seq, ln.section, ln.label, ln.note_ref, ent, pend, value, u, flag])
+                out_rows.append([name, page, ln.seq, ln.section.replace("\x00", "·"), ln.label.replace("\x00", "·"), ln.note_ref, ent, pend, value, u, flag])
     interim = ROOT / "data" / "interim" / ticker / f"FY{fy}"
     interim.mkdir(parents=True, exist_ok=True)
     with open(interim / "statements_extracted.csv", "w", newline="") as f:
@@ -86,10 +85,13 @@ def cmd_extract_pdf(args) -> None:
         w.writerow(["statement", "page", "line", "section", "label", "note_ref", "entity", "period_end", "value", "unit", "flag"])
         w.writerows(out_rows)
     print(f"Extracted {len(out_rows)} values from {pdf.name}")
-    for name, (page, dates, unit, lines) in statements.items():
+    for name, (page, columns, unit, lines) in statements.items():
         bad = sum(1 for ln in lines if ln.problems)
-        print(f"  {name:22s} page {page:>3}  {len(lines):>3} lines  ({bad} flagged)")
+        print(f"  {name:22s} page {page:>3}  {len(lines):>3} lines  {len(columns)} columns  unit {unit}  ({bad} flagged)")
     ids = run_identities(con, ticker, fy)
+    if ids is None:
+        print(f"\nNo integrity rules for {ticker} FY{fy} yet (rules/integrity/statement_identities.yaml): values stored, checks skipped.")
+        return
     passed = sum(1 for r in ids if r[6] == "pass")
     print(f"\nArithmetic checks: {passed} of {len(ids)} pass")
     for statement, entity, pend, name, total, actual, st in ids:
@@ -102,7 +104,7 @@ def cmd_extract_pdf(args) -> None:
         print(f"\nComparatives vs the FY{fy-1} report: {dict(counts)}")
         for st, ent, label, orig, now, status in comp:
             if status == "fail":
-                print(f"  CHANGED {st} / {ent} / {label}: FY{fy-1} report said {orig}, FY{fy} report shows {now}")
+                print(f"  CHANGED {st} / {ent} / {label.replace(chr(0), '·')}: FY{fy-1} report said {orig}, FY{fy} report shows {now}")
     rec = run_reconciliation(con, ticker, fy)
     from collections import Counter
     print("\nNGN Market reconciliation (group, FY%d): %s" % (fy, dict(Counter(r[5].split(" ")[0] for r in rec))))

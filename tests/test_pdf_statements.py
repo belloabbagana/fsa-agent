@@ -73,3 +73,10 @@ Provisions 10,625 2,147 (990) 1,261
 def test_label_with_text_above_numbers_is_joined():
     dates, unit, lines = parse_statement_page(PAGE, page=1)
     assert any(l.label.startswith("Write off & impairment of property, plant, equipment") for l in lines)
+
+
+def test_negative_number_with_only_one_bracket_is_negative():
+    from fsa.extract.pdf_statements import parse_value
+    assert parse_value("27,557)") == (-27557.0, "ok")        # stray space split the bracket from the digits
+    assert parse_value("(27,557") == (-27557.0, "ok")
+    assert parse_value("27,557") == (27557.0, "ok")

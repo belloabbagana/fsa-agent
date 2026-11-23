@@ -77,3 +77,90 @@ DANGCEM:
                  "Net cash used in investing activities|Net cash generated from/(used in) investing activities",
                  "Net cash used in financing activities|Net cash generated from/(used in) financing activities"]}
       - {name: closing_cash,        total: "#45", parts: ["#42", "#43", "#44"]}
+
+# Presco reports in N'000 and its PDFs are text-damaged (broken ligatures, stray spaces), so lines are referenced by
+# number ("#n" = line n of the statement, as extracted), which is more reliable than damaged labels.
+PRESCO:
+  FY2025:
+    profit_or_loss:
+      - {name: gross_profit,       total: "#3",  parts: ["#1", "#2"]}
+      - {name: operating_profit,   total: "#12", parts: ["#3", "#4..#11"]}
+      - {name: profit_before_tax,  total: "#15", parts: ["#12", "#13", "#14"]}
+      - {name: profit_for_year,     total: "#17", parts: ["#15", "#16"]}
+      - {name: attribution,         total: "#17", parts: ["#18", "#19"]}
+      - {name: oci_total,           total: "#25", parts: ["#22", "#23", "#24"]}
+      - {name: total_comprehensive, total: "#26", parts: ["#21", "#25"]}
+    financial_position:
+      - {name: non_current_assets,  total: "#6",  parts: ["#1..#5"]}
+      - {name: current_assets,      total: "#11", parts: ["#7..#10"]}
+      - {name: total_assets,        total: "#12", parts: ["#6", "#11"]}
+      - {name: owners_equity,       total: "#18", parts: ["#13..#17"]}
+      - {name: total_equity,        total: "#20", parts: ["#18", "#19"]}
+      - {name: non_current_liabilities, total: "#26", parts: ["#21..#25"]}
+      - {name: current_liabilities, total: "#34", parts: ["#27..#33"]}
+      - {name: total_liabilities,   total: "#35", parts: ["#26", "#34"]}
+      - {name: balance_sheet_balances, total: "#36", parts: ["#20", "#35"]}
+      - {name: assets_equal_funding, total: "#12", parts: ["#36"]}
+    cash_flows:
+      - {name: operating_before_working_capital, total: "#18", parts: ["#1..#17"]}
+      - {name: cash_generated,      total: "#23", parts: ["#18", "#19..#22"]}
+      - {name: net_operating,       total: "#26", parts: ["#23", "#24", "#25"]}
+      - {name: net_investing,       total: "#31", parts: ["#27..#30"]}
+      - {name: net_financing,       total: "#41", parts: ["#32..#40"]}
+      - {name: net_change_in_cash,  total: "#42", parts: ["#26", "#31", "#41"]}
+      - {name: closing_cash,        total: "#45", parts: ["#42", "#43", "#44"]}
+  FY2024:
+    profit_or_loss:
+      - {name: gross_profit,       total: "#3",  parts: ["#1", "#2"]}
+      - {name: operating_profit,   total: "#12", parts: ["#3", "#4..#11"]}
+      - {name: profit_before_tax,  total: "#15", parts: ["#12", "#13", "#14"]}
+      - {name: profit_for_year,     total: "#17", parts: ["#15", "#16"]}
+      - {name: attribution,         total: "#17", parts: ["#18", "#19"]}
+      - {name: oci_total,           total: "#24", parts: ["#22", "#23"]}
+      - {name: total_comprehensive, total: "#28", parts: ["#21", "#24"]}
+    financial_position:      # five columns: Group 2024, Group 2023 (restated), Group 1 Jan 2023 (restated), Company 2024, Company 2023
+      - {name: non_current_assets,  total: "#6",  parts: ["#1..#5"]}
+      - {name: current_assets,      total: "#11", parts: ["#7..#10"]}
+      - {name: total_assets,        total: "#12", parts: ["#6", "#11"]}
+      - {name: owners_equity,       total: "#18", parts: ["#13..#17"]}
+      - {name: total_equity,        total: "#20", parts: ["#18", "#19"]}
+      - {name: non_current_liabilities, total: "#26", parts: ["#21..#25"]}
+      - {name: current_liabilities, total: "#33", parts: ["#27..#32"]}
+      - {name: total_liabilities,   total: "#34", parts: ["#26", "#33"]}
+      - {name: balance_sheet_balances, total: "#35", parts: ["#20", "#34"]}
+      - {name: assets_equal_funding, total: "#12", parts: ["#35"]}
+    cash_flows:               # a cell left blank in the filing counts as nothing in a sum
+      - {name: operating_before_working_capital, total: "#17", parts: ["#1..#16"]}
+      - {name: cash_generated,      total: "#22", parts: ["#17", "#18..#21"]}
+      - {name: net_operating,       total: "#25", parts: ["#22", "#23", "#24"]}
+      - {name: net_investing,       total: "#30", parts: ["#26..#29"]}
+      - {name: net_financing,       total: "#40", parts: ["#31..#39"]}
+      - {name: net_change_in_cash,  total: "#41", parts: ["#25", "#30", "#40"]}
+      - {name: closing_cash,        total: "#44", parts: ["#41", "#42", "#43"]}
+  FY2023:
+    profit_or_loss:
+      - {name: gross_profit,       total: "#3",  parts: ["#1", "#2"]}
+      - {name: operating_profit,   total: "#11", parts: ["#3", "#4..#10"]}
+      - {name: profit_before_tax,  total: "#14", parts: ["#11", "#12", "#13"]}
+      - {name: profit_for_year,     total: "#16", parts: ["#14", "#15"]}
+      - {name: attribution,         total: "#16", parts: ["#17", "#18"]}
+      - {name: oci_total,           total: "#25", parts: ["#22", "#23"]}
+      - {name: total_comprehensive, total: "#26", parts: ["#20", "#25"]}
+    financial_position:
+      - {name: non_current_assets,  total: "#5",  parts: ["#1..#4"]}
+      - {name: current_assets,      total: "#10", parts: ["#6..#9"]}
+      - {name: total_assets,        total: "#11", parts: ["#5", "#10"]}
+      - {name: total_equity,        total: "#16", parts: ["#12..#15"]}
+      - {name: non_current_liabilities, total: "#22", parts: ["#17..#21"]}
+      - {name: current_liabilities, total: "#29", parts: ["#23..#28"]}
+      - {name: total_liabilities,   total: "#30", parts: ["#22", "#29"]}
+      - {name: balance_sheet_balances, total: "#31", parts: ["#16", "#30"]}
+      - {name: assets_equal_funding, total: "#11", parts: ["#31"]}
+    cash_flows:
+      - {name: operating_before_working_capital, total: "#16", parts: ["#1..#15"]}
+      - {name: cash_generated,      total: "#21", parts: ["#16", "#17..#20"]}
+      - {name: net_operating,       total: "#24", parts: ["#21", "#22", "#23"]}
+      - {name: net_investing,       total: "#29", parts: ["#25..#28"]}
+      - {name: net_financing,       total: "#40", parts: ["#30..#39"]}
+      - {name: net_change_in_cash,  total: "#41", parts: ["#24", "#29", "#40"]}
+      - {name: closing_cash,        total: "#44", parts: ["#41", "#42", "#43"]}

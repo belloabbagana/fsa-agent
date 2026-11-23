@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from fsa.extract.pdf_statements import norm_label
 from fsa.warehouse.db import ROOT
 
 STATEMENT_TO_PROVIDER = {"profit_or_loss": "Income Statement", "financial_position": "Balance Sheet", "cash_flows": "Cash Flow"}
@@ -16,29 +17,39 @@ STATEMENT_TO_PROVIDER = {"profit_or_loss": "Income Statement", "financial_positi
 
 def _rows(con, ticker, fy, statement):
     return con.execute(
-        "SELECT seq, section, label, entity, period_end, value, unit FROM pdf_statement_lines "
+        "SELECT seq, section, label, entity, period_end, value, unit, value_flag FROM pdf_statement_lines "
         "WHERE ticker=? AND fiscal_year=? AND statement=? ORDER BY seq", [ticker, fy, statement]).fetchall()
 
 
-def _find(rows, spec, entity, period_end):
+def _find(rows, spec, entity, period_end, blank_ok=False):
     """Resolve 'Label', 'Label@Section', '#n', or alternatives 'A|B' to one value.
     A leading '?' marks a part this filing may not print at all (counted as nothing, and said so)."""
     optional = spec.startswith("?")
     spec = spec.lstrip("?")
     last = None
     for alt in spec.split("|"):
+        nth = None
+        m = re.fullmatch(r"(.*)\[(\d+)\]", alt)
+        if m:
+            alt, nth = m.group(1), int(m.group(2))          # 'Label[1]': the first of several lines with that label
         if alt.startswith("#"):
             n = int(alt[1:])
             hit = [r for r in rows if r[0] == n and r[3] == entity and r[4] == period_end]
         else:
             label, _, section = alt.partition("@")
-            hit = [r for r in rows if r[2].lower() == label.lower() and r[3] == entity and r[4] == period_end
-                   and (not section or r[1].lower() == section.lower())]
+            hit = [r for r in rows if norm_label(r[2]) == norm_label(label) and r[3] == entity and r[4] == period_end
+                   and (not section or norm_label(r[1]) == norm_label(section))]
+        if nth and len(hit) >= nth:
+            hit = [sorted(hit, key=lambda r: r[0])[nth - 1]]
         if len(hit) == 1:
-            return hit[0][5], hit[0][2] or f"#{hit[0][0]}"
+            if hit[0][5] is None:
+                if optional or (blank_ok and hit[0][7] == "blank_in_filing"):
+                    return 0.0, "(blank in this filing)", hit[0][6]
+                raise LookupError(f"{spec!r}: the value is blank or unreadable in the filing")
+            return hit[0][5], hit[0][2] or f"#{hit[0][0]}", hit[0][6]
         last = len(hit)
     if optional and last == 0:
-        return 0.0, "(not printed in this filing)"
+        return 0.0, "(not printed in this filing)", None
     raise LookupError(f"{spec!r}: found {last} lines")
 
 
@@ -48,7 +59,9 @@ def _expand(spec):
 
 
 def run_identities(con, ticker, fy):
-    rules = yaml.safe_load((ROOT / "rules" / "integrity" / "statement_identities.yaml").read_text())[ticker][f"FY{fy}"]
+    rules = yaml.safe_load((ROOT / "rules" / "integrity" / "statement_identities.yaml").read_text()).get(ticker, {}).get(f"FY{fy}")
+    if not rules:
+        return None
     con.execute("DELETE FROM integrity_checks WHERE ticker=? AND fiscal_year=? AND check_name NOT LIKE 'comparative:%'", [ticker, fy])
     results = []
     for statement, checks in rules.items():
@@ -58,9 +71,9 @@ def run_identities(con, ticker, fy):
             for c in checks:
                 parts = [p for spec in c["parts"] for p in _expand(spec)]
                 try:
-                    total, _ = _find(rows, c["total"], entity, pend)
-                    actual = sum(_find(rows, p, entity, pend)[0] for p in parts)
-                    actual -= sum(_find(rows, p, entity, pend)[0] for p in c.get("minus", []))
+                    total = _find(rows, c["total"], entity, pend)[0]
+                    actual = sum(_find(rows, p, entity, pend, blank_ok=True)[0] for p in parts)
+                    actual -= sum(_find(rows, p, entity, pend, blank_ok=True)[0] for p in c.get("minus", []))
                 except LookupError as e:
                     results.append((statement, entity, pend, c["name"], None, None, f"fail: {e}"))
                     continue
@@ -75,7 +88,10 @@ def run_identities(con, ticker, fy):
 
 def run_reconciliation(con, ticker, fy):
     from datetime import date
-    rules = yaml.safe_load((ROOT / "rules" / "provider_reconciliation.yaml").read_text())[ticker]
+    rules = yaml.safe_load((ROOT / "rules" / "provider_reconciliation.yaml").read_text()).get(ticker)
+    if not rules:
+        return None
+    rules = rules.get(f"FY{fy}", rules)
     pend = date(fy, 12, 31)
     con.execute("DELETE FROM reconciliation WHERE ticker=? AND fiscal_year=?", [ticker, fy])
     out = []
@@ -97,13 +113,18 @@ def run_reconciliation(con, ticker, fy):
             except LookupError as e:
                 out.append((it["metric"], " + ".join(labels), None, prov, None, f"not_comparable ({e})"))
                 continue
-            scale = it.get("scale", 1_000_000)
+            unit = _find(rows, labels[0] + (f"@{it['section']}" if "section" in it else ""), "group", pend)[2]
+            scale = it.get("scale", {"NGN_million": 1_000_000, "NGN_thousand": 1_000}.get(unit, 1))
             pdf_value = sum(vals) * scale * it.get("sign", 1)
             if prov is None:
                 out.append((it["metric"], " + ".join(labels), pdf_value, None, None, "not_comparable (provider value missing)"))
                 continue
             diff = prov - pdf_value
             tol = 0.5 * scale if scale > 1 else 0.005
+            if scale < 1 and prov == round(prov):
+                tol = 0.5                                 # per-share figure: the provider stored it as a whole number
+            if 1 < scale < 1_000_000 and prov % 1_000_000 == 0:
+                tol = 1_000_000 + 0.5 * scale             # the provider stores this company rounded to whole millions of naira
             status = "match" if abs(diff) <= tol else "differs"
             if status == "differs":
                 # Does the provider match the comparative shown in the NEXT year's report? Then the company restated it.
@@ -134,24 +155,25 @@ def run_comparatives(con, ticker, fy):
 
     def keyed(report_year):
         rows = con.execute(
-            "SELECT statement, seq, label, entity, value FROM pdf_statement_lines "
+            "SELECT statement, seq, label, entity, value, unit FROM pdf_statement_lines "
             "WHERE ticker=? AND fiscal_year=? AND period_end=? AND label<>'' ORDER BY statement, seq", [ticker, report_year, prior_end]).fetchall()
         seen, out = {}, {}
-        for st, seq, label, ent, val in rows:
-            n = seen[(st, label.lower(), ent)] = seen.get((st, label.lower(), ent), 0) + 1
-            out[(st, label.lower(), n, ent)] = (label, val)
+        for st, seq, label, ent, val, unit in rows:
+            n = seen[(st, norm_label(label), ent)] = seen.get((st, norm_label(label), ent), 0) + 1
+            out[(st, norm_label(label), n, ent)] = (label.replace("\x00", "·"), val, unit)
         return out
 
     later, earlier = keyed(fy), keyed(fy - 1)
     con.execute("DELETE FROM integrity_checks WHERE ticker=? AND fiscal_year=? AND check_name LIKE 'comparative:%'", [ticker, fy])
     results = []
-    for key, (label, comparative) in later.items():
+    for key, (label, comparative, unit) in later.items():
         st, _, n, ent = key
+        tol = 2.5 if unit == "NGN_thousand" else 0.5        # printed rounding of up to a couple of units is not a restatement
         if key not in earlier:
             status, original = "unmatched", None
         else:
             original = earlier[key][1]
-            status = "pass" if comparative is not None and original is not None and abs(comparative - original) < 0.5 else "fail"
+            status = "pass" if comparative is not None and original is not None and abs(comparative - original) <= tol else "fail"
         results.append((st, ent, label, original, comparative, status))
         con.execute("INSERT INTO integrity_checks (ticker,fiscal_year,statement,entity,period_end,check_name,expected,actual,status) VALUES (?,?,?,?,?,?,?,?,?)",
                     [ticker, fy, st, ent, prior_end, f"comparative:{label}", original, comparative, status])

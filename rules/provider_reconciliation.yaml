@@ -47,3 +47,49 @@ DANGCEM:
     - {metric: "Capital Expenditure", pdf: "Acquisition of property, plant and equipment", sign: -1}
     - {metric: "Dividends Paid",      pdf: "Dividends paid", sign: -1}
     - {metric: "Free Cash Flow",      derived: "provider calculation (operating cash flow - capital expenditure)"}
+
+# Presco: values are in N'000 (scaled automatically). Where a label repeats, "[1]" takes the first occurrence.
+# Where NGN Market's own definition is unclear, the metric is recorded as not_comparable rather than guessed.
+PRESCO:
+  profit_or_loss:
+    - {metric: "Revenue",            pdf: "Revenue"}
+    - {metric: "Cost of Revenue",    pdf: "Cost of sales", sign: -1}
+    - {metric: "Gross Profit",       pdf: "Gross profit"}
+    - {metric: "Operating Expenses", derived: "NGN Market definition unclear: it does not equal administrative plus selling and distribution expenses"}
+    - {metric: "Operating Income",   pdf: "Operating profit before finance cost and finance income"}
+    - {metric: "Interest Expense",   pdf: "Finance cost", sign: -1}
+    - {metric: "Interest & Investment Income", pdf: "Interest income calculated under the effective interest method|Finance income"}
+    - {metric: "Pretax Income",      pdf: "Profit before tax"}
+    - {metric: "Income Tax Expense", pdf: "Tax expense", sign: -1}
+    - {metric: "Net Income",         pdf: "Profit for the year[1]"}
+    - {metric: "EPS (Basic)",        pdf: "Basic (Kobo)", scale: 0.01}
+    - {metric: "EBIT",               derived: "provider calculation (profit before tax + finance cost)"}
+  financial_position:
+    - {metric: "Total Assets",       pdf: "Total assets"}
+    - {metric: "Current Assets",     pdf: "Total current assets"}
+    - {metric: "Cash & Equivalents", pdf: "Cash and cash equivalents"}
+    - {metric: "Receivables",        pdf: "Trade and other receivables"}
+    - {metric: "Inventory",          pdf: "Inventories"}
+    - {metric: "Non-current Assets", pdf: "Total non-current assets"}
+    - {metric: "Property, Plant & Equipment", pdf: "Property, plant and equipment"}
+    - {metric: "Intangible Assets",  pdf: "Intangible assets"}
+    - {metric: "Total Liabilities",  pdf: "Total liabilities"}
+    - {metric: "Current Liabilities", pdf: "Total current liabilities"}
+    - {metric: "Accounts Payable",   pdf: "Trade and other payables"}
+    - {metric: "Short-term Debt",    pdf: ["Borrowings@Current liabilities", "Bank overdraft"]}
+    - {metric: "Non-current Liabilities", pdf: "Total non-current liabilities"}
+    - {metric: "Long-term Debt",     pdf: "Borrowings@Non-current liabilities"}
+    - {metric: "Shareholders' Equity", pdf: "Total equity"}
+    - {metric: "Share Capital",      pdf: "Share capital"}
+    - {metric: "Retained Earnings",  pdf: "Retained earnings"}
+    - {metric: "Total Liabilities & Equity", pdf: "Total equity and liabilities"}
+    - {metric: "Total debt",         derived: "provider calculation"}
+    - {metric: "Net debt",           derived: "provider calculation"}
+    - {metric: "Working capital",    derived: "provider calculation (current assets - current liabilities)"}
+  cash_flows:
+    - {metric: "Operating Cash Flow", pdf: "Net cash generated in operating activities"}
+    - {metric: "Investing Cash Flow", pdf: "Net cash used in investing activities"}
+    - {metric: "Financing Cash Flow", pdf: "Net cash generated from/(used in) financing activities|Net cash used in/ generated from financing activities|Net cash used in financing activities"}
+    - {metric: "Capital Expenditure", pdf: "Acquisition of property, plant and equipment", sign: -1}
+    - {metric: "Dividends Paid",      pdf: "Dividends paid|Dividend paid during the year 32.4a", sign: -1}
+    - {metric: "Free Cash Flow",      derived: "provider calculation (operating cash flow - capital expenditure)"}
