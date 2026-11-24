@@ -15,6 +15,7 @@ from fsa.map.chart import coverage, load_chart, validate_chart
 from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_check, parse_proposals, verify_model
 from fsa.map.finalize import finalize, load_decisions, signed_off
 from fsa.map.rules_mapper import propose as rule_propose
+from fsa.analyse import ratios as rat
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
@@ -313,6 +314,26 @@ def cmd_decisions(args) -> None:
         n = con.execute("""SELECT count(*) FROM mapping_final f WHERE f.label IS NOT NULL AND lower(replace(f.label,' ','')) LIKE '%' || lower(replace(?, ' ', '')) || '%'""", [d["label"][:20]]).fetchone()[0]
         print(f"[{d['status']:8s}] {d['label']!r} -> {d['code']}   (seen on ~{n} line(s))\n           {d['reason']}")
 
+def cmd_ratios(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    chart, con, rules = load_chart(), connect(), rat.load_rules()
+    res = rat.compute(con, chart, rules, ticker, fy)
+    rat.save(con, ticker, fy, res, rules["version"])
+    out_dir = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    lines = [f"# Ratios: {ticker} FY{fy} (rules v{rules['version']}, chart v{chart['version']}, N millions, nominal)", ""]
+    cat = None
+    for r in res:
+        if r["category"] != cat:
+            cat = r["category"]
+            lines += ["", f"## {cat.replace('_', ' ')}", ""]
+        lines.append(f"- {r['ratio_id'].replace('_', ' ')}: {rat.fmt(r)}")
+    (out_dir / "ratios.md").write_text("\n".join(lines) + "\n")
+    n_nm = sum(1 for r in res if r["status"] != "ok")
+    print(f"{ticker} FY{fy}: {len(res)} ratios, {len(res) - n_nm} computed, {n_nm} not meaningful")
+    if args.show:
+        print("\n".join(lines))
+
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
@@ -343,6 +364,8 @@ def main() -> None:
     dc.add_argument("ticker"); dc.add_argument("fy"); dc.add_argument("--show", action="store_true"); dc.set_defaults(func=cmd_disclosures)
     dd = sub.add_parser("decisions", help="List the analyst decisions on mapping and their status")
     dd.set_defaults(func=cmd_decisions)
+    rt = sub.add_parser("ratios", help="Compute the ratios in rules/ratios.yaml for a company-year")
+    rt.add_argument("ticker"); rt.add_argument("fy"); rt.add_argument("--show", action="store_true"); rt.set_defaults(func=cmd_ratios)
     args = p.parse_args()
     args.func(args)
 

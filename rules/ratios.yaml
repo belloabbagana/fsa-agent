@@ -1,0 +1,376 @@
+# RATIO DEFINITIONS: non-financial corporates (DRAFT v0.1 by Claude, for Bello to review and decide)
+#
+# What this is: the formula, the reason, and the "not meaningful" condition for every ratio. The code only evaluates
+# these; it never decides what a ratio means (project rule: analytical judgement lives in rules/).
+#
+# How to read a formula: names are account codes from rules/chart_of_accounts/corporate.yaml (e.g. PL_REVENUE) or a
+# metric defined in the "metrics" block below. Amounts are in N millions; flows are for the year; costs and outflows
+# are negative exactly as printed (so cost of sales is written -PL_COST_OF_SALES to make it positive).
+#   avg(X)    average of X at the start and end of the year (start = the prior-year column of the same report, so both
+#             ends are on the same, possibly restated, basis)
+#   prior(X)  X at the start of the year
+# A ratio may use other ratios by their lower-case id (listed under needs). A ratio is shown as N/M (not meaningful) with its reason when any "nm_if" condition is true, or a needed figure is
+# missing. It is never forced into a number (agent instructions, section 15).
+#
+# DECISIONS FOR YOU (each one changes the numbers):
+#  1. AVERAGE vs YEAR-END balances for returns, turnover and days. I use the average of opening and closing (standard CFA
+#     practice, avoids flattering a ratio in a growth year). Alternative: year-end only. Every report carries an opening
+#     column, so the average is always available.
+#  2. LEVERAGE PAIRING. EBITDA here is after IFRS 16 (lease costs are below EBITDA), so the matching debt must INCLUDE lease
+#     liabilities. Headline = (net debt incl. leases) / EBITDA. Overdrafts are debt (chart decision 5). Alternative headline:
+#     net debt excluding leases over EBITDA before IFRS 16 (needs an approximation; shown as a secondary ratio).
+#  3. EBITDA = standardised operating profit + depreciation and amortisation. "Reported" basis: it still contains FX, fair-value
+#     and other gains that sit in operating profit. The analyst-adjusted EBITDA (rules/adjustments.yaml, later) strips them.
+#  4. TAX RATE FOR ROIC. Effective rate (tax / profit before tax) of the year, N/M if profit before tax <= 0 or the rate is
+#     outside 0-60%. Alternative: Nigeria's 30% statutory rate. Effective is more honest about what the company actually paid.
+#  5. WHICH PROFIT. Margins and ROA use profit for the year (all stakeholders). ROE and payout use profit attributable to owners.
+#  6. DAYS use 365 and cost of sales (not revenue) for inventory and payables.
+#  7. N/M POLICY. Denominator <= 0 where a negative is meaningless (equity, EBITDA, profit): N/M. Growth where last year <= 0: N/M.
+#     Interest cover where there is no interest cost: N/M ("no interest cost"), not infinity.
+#  8. NOMINAL, NOT REAL. Every ratio is in nominal naira. No inflation restatement (out of scope for v1), so growth rates mix
+#     volume, price and inflation. This is disclosed in every report.
+#
+version: "0.1-draft"
+units: {amounts: "N millions", days_in_year: 365}
+
+# ---------------------------------------------------------------------------------------------------------- building blocks
+metrics:
+  EBITDA:
+    formula: "PL_OPERATING_PROFIT + CF_DEPRECIATION_AMORTISATION"
+    what: "Operating profit before depreciation and amortisation, after IFRS 16 (lease cost sits below EBITDA)."
+    why: "Proxy for cash earnings from operations. Pair it only with debt that includes lease liabilities."
+  CAPEX:
+    formula: "-(CF_CAPEX_PPE + CF_CAPEX_INTANGIBLES)"
+    what: "Cash spent on property, plant and equipment and intangibles (shown positive)."
+    why: "Free cash flow = operating cash flow minus capex, never minus all investing (agent instructions, section 8)."
+  FCF:
+    formula: "CF_OPERATING - CAPEX"
+    what: "Free cash flow: cash from operations after capital expenditure."
+    why: "What is left for debt service, dividends and growth. Related-party loans are excluded on purpose."
+  DEBT_GROSS:
+    formula: "BS_BORROWINGS_NC + BS_BORROWINGS_C + BS_BANK_OVERDRAFT"
+    what: "Interest-bearing borrowings including overdrafts, excluding leases."
+    why: "Overdrafts are debt even when netted against cash in the cash flow statement (chart decision 5)."
+    tags: ["sharia:interest_bearing_debt"]
+  LEASE_DEBT:
+    formula: "BS_LEASE_LIABILITIES_NC + BS_LEASE_LIABILITIES_C"
+    what: "Lease liabilities (IFRS 16)."
+    why: "Debt-like; included when EBITDA is after IFRS 16."
+  NET_DEBT:
+    formula: "DEBT_GROSS - BS_CASH"
+    what: "Borrowings less balance-sheet cash. Cash may include restricted cash: read the notes."
+    why: "Uses balance-sheet cash, not the cash-flow-statement figure (chart decision 5)."
+  NET_DEBT_INCL_LEASES:
+    formula: "NET_DEBT + LEASE_DEBT"
+    what: "Net debt plus lease liabilities."
+    why: "The right numerator against post-IFRS 16 EBITDA."
+  INVESTED_CAPITAL:
+    formula: "BS_TOTAL_EQUITY + NET_DEBT_INCL_LEASES"
+    what: "Capital provided by owners and net lenders."
+    why: "Denominator of ROIC; a cash-rich balance sheet should not dilute the return on operating capital."
+  EFFECTIVE_TAX_RATE:
+    formula: "-PL_INCOME_TAX / PL_PROFIT_BEFORE_TAX"
+    nm_if: ["PL_PROFIT_BEFORE_TAX <= 0", "EFFECTIVE_TAX_RATE < 0", "EFFECTIVE_TAX_RATE > 0.6"]
+    what: "Tax charge divided by profit before tax."
+    why: "Used to tax operating profit in ROIC. Swings (deferred tax, one-offs) need explaining."
+  NOPAT:
+    formula: "PL_OPERATING_PROFIT * (1 - EFFECTIVE_TAX_RATE)"
+    what: "Net operating profit after tax."
+    why: "Return to all capital providers before financing costs."
+  NON_CORE_PROFIT:
+    formula: "PL_OTHER_GAINS + PL_FX_OPERATING + PL_BIOLOGICAL_FV + PL_MONETARY_POSITION + PL_SHARE_OF_ASSOCIATE"
+    what: "Gains and losses the company reports in profit that are not from selling its products: other gains, FX, plantation fair value, inflation accounting, associates."
+    why: "Reported profit growth can overstate underlying improvement (agent instructions, section 4C)."
+  SHARIA_INTEREST_BEARING_DEBT:
+    formula: "DEBT_GROSS + LEASE_DEBT"
+    what: "Input for the later Sharia screen (not screened in v1)."
+    tags: ["sharia:interest_bearing_debt"]
+  SHARIA_INTEREST_INCOME:
+    formula: "PL_FINANCE_INCOME"
+    what: "Input for the later Sharia screen (not screened in v1)."
+    tags: ["sharia:interest_income"]
+
+# ---------------------------------------------------------------------------------------------------------- ratios
+ratios:
+  # ---------------- profitability
+  - id: gross_margin
+    category: profitability
+    unit: pct
+    formula: "PL_GROSS_PROFIT / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Pricing power against input costs. Energy and imported inputs make this the first place devaluation shows."
+  - id: ebitda_margin
+    category: profitability
+    unit: pct
+    formula: "EBITDA / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Operating earnings per naira of sales before capital intensity."
+  - id: operating_margin
+    category: profitability
+    unit: pct
+    formula: "PL_OPERATING_PROFIT / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Standardised operating profit includes FX and fair-value gains as printed; compare with the core margin below."
+  - id: core_operating_margin
+    category: profitability
+    unit: pct
+    formula: "(PL_OPERATING_PROFIT - PL_FX_OPERATING - PL_BIOLOGICAL_FV - PL_OTHER_GAINS) / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Operating margin without FX, plantation fair-value and other gains: closer to what the business earns by trading."
+  - id: pretax_margin
+    category: profitability
+    unit: pct
+    formula: "PL_PROFIT_BEFORE_TAX / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "After finance costs and inflation accounting: shows how much operating profit leaks to lenders and FX."
+  - id: net_margin
+    category: profitability
+    unit: pct
+    formula: "PL_PROFIT_FOR_YEAR / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Bottom line per naira of sales."
+  - id: effective_tax_rate
+    category: profitability
+    unit: pct
+    formula: "EFFECTIVE_TAX_RATE * 100"
+    why: "Compare with the 30% statutory rate; a low rate may not last."
+  - id: non_core_share_of_pretax_profit
+    category: earnings_quality
+    unit: pct
+    formula: "NON_CORE_PROFIT / PL_PROFIT_BEFORE_TAX * 100"
+    nm_if: ["PL_PROFIT_BEFORE_TAX <= 0"]
+    why: "How much of profit is not from trading (FX, plantation revaluation, inflation accounting, associates). High and rising is a quality flag."
+
+  # ---------------- growth (nominal; opening figures come from the same report's comparative column)
+  - id: revenue_growth
+    category: growth
+    unit: pct
+    formula: "(PL_REVENUE / prior(PL_REVENUE) - 1) * 100"
+    nm_if: ["prior(PL_REVENUE) <= 0"]
+    why: "Nominal growth: with inflation and devaluation it overstates real growth. Volume and price split needs the notes."
+  - id: ebitda_growth
+    category: growth
+    unit: pct
+    formula: "(EBITDA / prior(EBITDA) - 1) * 100"
+    nm_if: ["prior(EBITDA) <= 0"]
+    why: "Operating earnings growth versus revenue growth shows operating leverage or squeeze."
+  - id: operating_profit_growth
+    category: growth
+    unit: pct
+    formula: "(PL_OPERATING_PROFIT / prior(PL_OPERATING_PROFIT) - 1) * 100"
+    nm_if: ["prior(PL_OPERATING_PROFIT) <= 0"]
+    why: "As above, on the standardised operating profit."
+  - id: net_profit_growth
+    category: growth
+    unit: pct
+    formula: "(PL_PROFIT_FOR_YEAR / prior(PL_PROFIT_FOR_YEAR) - 1) * 100"
+    nm_if: ["prior(PL_PROFIT_FOR_YEAR) <= 0"]
+    why: "Profit growth much faster than operating growth usually means non-operating effects."
+
+  # ---------------- returns (average balances)
+  - id: roe
+    category: returns
+    unit: pct
+    formula: "PL_ATTRIB_OWNERS / avg(BS_EQUITY_OWNERS) * 100"
+    nm_if: ["avg(BS_EQUITY_OWNERS) <= 0"]
+    why: "Return to shareholders. Equity includes large translation reserves at Dangote, which are not earned capital."
+  - id: roa
+    category: returns
+    unit: pct
+    formula: "PL_PROFIT_FOR_YEAR / avg(BS_TOTAL_ASSETS) * 100"
+    nm_if: ["avg(BS_TOTAL_ASSETS) <= 0"]
+    why: "Efficiency of the whole asset base regardless of financing."
+  - id: roic
+    category: returns
+    unit: pct
+    formula: "NOPAT / avg(INVESTED_CAPITAL) * 100"
+    nm_if: ["avg(INVESTED_CAPITAL) <= 0"]
+    why: "Return on operating capital after tax. v1 shows ROIC and its trend only; comparison with the cost of capital is later."
+  - id: asset_turnover
+    category: efficiency
+    unit: x
+    formula: "PL_REVENUE / avg(BS_TOTAL_ASSETS)"
+    nm_if: ["avg(BS_TOTAL_ASSETS) <= 0"]
+    why: "Sales per naira of assets; falls when assets are revalued or inflated faster than sales."
+  - id: fixed_asset_turnover
+    category: efficiency
+    unit: x
+    formula: "PL_REVENUE / avg(BS_PPE)"
+    nm_if: ["avg(BS_PPE) <= 0"]
+    why: "Capital intensity. Cement is capital heavy: compare with peers, not across sectors."
+
+  # ---------------- liquidity
+  - id: current_ratio
+    category: liquidity
+    unit: x
+    formula: "BS_TOTAL_CURRENT_ASSETS / BS_TOTAL_CURRENT_LIABILITIES"
+    nm_if: ["BS_TOTAL_CURRENT_LIABILITIES <= 0"]
+    why: "Ability to meet obligations due within a year. Read with the quality of current assets (inventory, prepayments)."
+  - id: quick_ratio
+    category: liquidity
+    unit: x
+    formula: "(BS_CASH + BS_TRADE_RECEIVABLES) / BS_TOTAL_CURRENT_LIABILITIES"
+    nm_if: ["BS_TOTAL_CURRENT_LIABILITIES <= 0"]
+    why: "Strict version: cash and receivables only. Excludes inventory, biological assets and prepayments."
+  - id: cash_ratio
+    category: liquidity
+    unit: x
+    formula: "BS_CASH / BS_TOTAL_CURRENT_LIABILITIES"
+    nm_if: ["BS_TOTAL_CURRENT_LIABILITIES <= 0"]
+    why: "Immediate liquidity. Cash may include restricted cash."
+  - id: cfo_to_current_liabilities
+    category: liquidity
+    unit: x
+    formula: "CF_OPERATING / BS_TOTAL_CURRENT_LIABILITIES"
+    nm_if: ["BS_TOTAL_CURRENT_LIABILITIES <= 0"]
+    why: "Cash generated against what is due soon."
+
+  # ---------------- leverage and solvency
+  - id: debt_to_equity
+    category: leverage
+    unit: x
+    formula: "DEBT_GROSS / BS_TOTAL_EQUITY"
+    nm_if: ["BS_TOTAL_EQUITY <= 0"]
+    why: "Borrowings (incl. overdrafts, excl. leases) against owners' capital."
+  - id: net_debt_to_equity
+    category: leverage
+    unit: x
+    formula: "NET_DEBT_INCL_LEASES / BS_TOTAL_EQUITY"
+    nm_if: ["BS_TOTAL_EQUITY <= 0"]
+    why: "Net of cash; negative means net cash."
+  - id: debt_to_assets
+    category: leverage
+    unit: x
+    formula: "DEBT_GROSS / BS_TOTAL_ASSETS"
+    nm_if: ["BS_TOTAL_ASSETS <= 0"]
+    why: "Share of assets funded by borrowing."
+  - id: net_debt_to_ebitda
+    category: leverage
+    unit: x
+    formula: "NET_DEBT_INCL_LEASES / EBITDA"
+    nm_if: ["EBITDA <= 0"]
+    why: "Years of EBITDA to repay net debt. N/M when EBITDA is not positive (agent instructions, section 7). Headline leverage (decision 2)."
+  - id: interest_cover
+    category: leverage
+    unit: x
+    formula: "PL_OPERATING_PROFIT / -PL_FINANCE_COSTS"
+    nm_if: ["PL_FINANCE_COSTS >= 0"]
+    caveat: "At Dangote, finance costs include FX losses on foreign-currency debt, so cover is understated; in the notes the interest and FX parts can be separated."
+    why: "How comfortably operating profit covers finance costs."
+  - id: ebitda_interest_cover
+    category: leverage
+    unit: x
+    formula: "EBITDA / -PL_FINANCE_COSTS"
+    nm_if: ["PL_FINANCE_COSTS >= 0"]
+    why: "Cash-flavoured cover (same caveat on FX)."
+
+  # ---------------- working capital (days)
+  - id: dso
+    category: working_capital
+    unit: days
+    formula: "avg(BS_TRADE_RECEIVABLES) / PL_REVENUE * 365"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Days of sales owed by customers. Receivables growing faster than revenue is a flag (agent instructions, 9B)."
+  - id: dio
+    category: working_capital
+    unit: days
+    formula: "avg(BS_INVENTORIES) / -PL_COST_OF_SALES * 365"
+    nm_if: ["PL_COST_OF_SALES >= 0"]
+    why: "Days of production cost held as stock. Inventory outgrowing cost of sales is a flag (9C)."
+  - id: dpo
+    category: working_capital
+    unit: days
+    formula: "avg(BS_TRADE_PAYABLES) / -PL_COST_OF_SALES * 365"
+    nm_if: ["PL_COST_OF_SALES >= 0"]
+    caveat: "Trade and other payables include accruals and non-trade items, so days are an upper bound."
+    why: "Days taken to pay suppliers. Rising days can be stretched suppliers, not efficiency (9D)."
+  - id: cash_conversion_cycle
+    category: working_capital
+    unit: days
+    formula: "dso + dio - dpo"
+    needs: [dso, dio, dpo]
+    why: "Days cash is tied up in operations. Negative means suppliers fund the business."
+
+  # ---------------- cash flow quality
+  - id: cfo_to_net_income
+    category: cash_flow_quality
+    unit: x
+    formula: "CF_OPERATING / PL_PROFIT_FOR_YEAR"
+    nm_if: ["PL_PROFIT_FOR_YEAR <= 0"]
+    why: "Are profits backed by cash? Persistently below 1 is a flag."
+  - id: cash_conversion
+    category: cash_flow_quality
+    unit: x
+    formula: "CF_OPERATING / EBITDA"
+    nm_if: ["EBITDA <= 0"]
+    why: "Share of EBITDA that arrives as operating cash after tax, working capital and similar."
+  - id: fcf_margin
+    category: cash_flow_quality
+    unit: pct
+    formula: "FCF / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Free cash per naira of sales."
+  - id: fcf_to_net_income
+    category: cash_flow_quality
+    unit: x
+    formula: "FCF / PL_PROFIT_FOR_YEAR"
+    nm_if: ["PL_PROFIT_FOR_YEAR <= 0"]
+    why: "Profit that survives capital spending as cash."
+  - id: capex_to_revenue
+    category: cash_flow_quality
+    unit: pct
+    formula: "CAPEX / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Investment intensity."
+  - id: capex_to_depreciation
+    category: cash_flow_quality
+    unit: x
+    formula: "CAPEX / CF_DEPRECIATION_AMORTISATION"
+    nm_if: ["CF_DEPRECIATION_AMORTISATION <= 0"]
+    why: "Below 1 for years means assets are being run down; far above 1 means expansion (maintenance vs growth needs the notes)."
+  - id: accruals_ratio
+    category: earnings_quality
+    unit: pct
+    formula: "(PL_PROFIT_FOR_YEAR - CF_OPERATING) / avg(BS_TOTAL_ASSETS) * 100"
+    nm_if: ["avg(BS_TOTAL_ASSETS) <= 0"]
+    why: "Sloan accruals: profit not matched by cash, scaled by assets. Read against peers and never alone (devaluation years distort it)."
+
+  # ---------------- capital allocation
+  - id: dividend_payout_cash
+    category: capital_allocation
+    unit: pct
+    formula: "-CF_DIVIDENDS_PAID / PL_ATTRIB_OWNERS * 100"
+    nm_if: ["PL_ATTRIB_OWNERS <= 0"]
+    why: "Cash dividends paid in the year over owners' profit (timing differs from declared dividends)."
+  - id: dividend_to_fcf
+    category: capital_allocation
+    unit: pct
+    formula: "-CF_DIVIDENDS_PAID / FCF * 100"
+    nm_if: ["FCF <= 0"]
+    why: "Is the dividend covered by free cash flow?"
+
+  # ---------------- Nigeria-specific
+  - id: translation_reserve_share_of_equity
+    category: nigeria_specific
+    unit: pct
+    formula: "BS_CURRENCY_TRANSLATION_RESERVE / BS_TOTAL_EQUITY * 100"
+    nm_if: ["BS_TOTAL_EQUITY <= 0"]
+    why: "How much of equity is exchange translation (not earned profit). Large for Pan-African groups after devaluation."
+  - id: fx_share_of_operating_profit
+    category: nigeria_specific
+    unit: pct
+    formula: "PL_FX_OPERATING / PL_OPERATING_PROFIT * 100"
+    nm_if: ["PL_OPERATING_PROFIT <= 0"]
+    why: "FX shown inside operating profit is not operating performance."
+  - id: biological_fv_share_of_operating_profit
+    category: nigeria_specific
+    unit: pct
+    formula: "PL_BIOLOGICAL_FV / PL_OPERATING_PROFIT * 100"
+    nm_if: ["PL_OPERATING_PROFIT <= 0"]
+    why: "Non-cash plantation revaluation as a share of operating profit (agriculture only)."
+  - id: monetary_position_share_of_pretax_profit
+    category: nigeria_specific
+    unit: pct
+    formula: "PL_MONETARY_POSITION / PL_PROFIT_BEFORE_TAX * 100"
+    nm_if: ["PL_PROFIT_BEFORE_TAX <= 0"]
+    why: "Inflation-accounting effect on profit."

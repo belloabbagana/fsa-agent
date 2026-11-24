@@ -162,3 +162,18 @@ CREATE TABLE IF NOT EXISTS report_disclosures (
     source_ref    VARCHAR,
     generated_at  TIMESTAMP DEFAULT current_timestamp
 );
+
+-- Ratios computed by code from the settled mapping, with the inputs behind every number (rule 4: every number cites its source).
+CREATE TABLE IF NOT EXISTS ratios (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    ratio_id      VARCHAR NOT NULL,
+    category      VARCHAR,
+    unit          VARCHAR,
+    value         DOUBLE,                -- NULL when not meaningful
+    status        VARCHAR NOT NULL,      -- ok | N/M
+    reason        VARCHAR,               -- why N/M
+    inputs        VARCHAR,               -- JSON: the account values used (N millions), current and opening
+    rules_version VARCHAR,
+    computed_at   TIMESTAMP DEFAULT current_timestamp
+);
