@@ -10,6 +10,7 @@ import yaml
 
 from fsa.extract.pdf_statements import norm_label
 from fsa.map.chart import label_index
+from fsa.map.finalize import signed_off
 from fsa.map.validate_mapping import account_totals, check_subtotals, computed
 from fsa.warehouse.db import ROOT
 
@@ -154,7 +155,16 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
                f"{', '.join(models) if models else 'no model'} (the model that answered was read from the usage report). "
                f"Of {len(final)} lines: {basis.get('agreed', 0)} agreed by both, {basis.get('rule_only', 0)} by rule alone, {basis.get('rule_model_silent', 0)} by rule where the model gave no code, {basis.get('analyst_decision', 0)} settled by the analyst's decision, "
                f"{basis.get('model_accepted', 0)} unlabelled totals accepted because the sum reproduces them, {basis.get('intermediate_total', 0)} unlabelled running totals not used, {n_open} still open. Model proposals can differ between runs, so every decision is recorded.")
-        add("mapping", "important" if n_open else "note", txt + (" Open lines may affect the figures; do not rely on them until they are settled." if n_open else ""))
+        so = signed_off(ticker, fy)
+        if n_open:
+            status = " Open lines may affect the figures; do not rely on them until they are settled."
+        elif so:
+            same = str(so.get("chart_version")) == str(chart.get("version"))
+            status = (f" The mapping was signed off by the analyst ({so.get('approved_by')}) on {so.get('date')} against chart v{so.get('chart_version')}."
+                      + ("" if same else f" The chart has since changed to v{chart.get('version')}: a new sign-off is needed."))
+        else:
+            status = " The mapping has not yet been signed off by the analyst."
+        add("mapping", "important" if (n_open or not so) else "note", txt + status)
 
     # ---- blank cells and damaged text ----
     blanks = con.execute("SELECT count(*), count(DISTINCT label), count(*) FILTER (entity='group'), count(*) FILTER (entity='company') FROM pdf_statement_lines WHERE ticker=? AND fiscal_year=? AND value_flag='blank_in_filing'", [ticker, fy]).fetchone()

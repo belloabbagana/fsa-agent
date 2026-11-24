@@ -1,3 +1,12 @@
 # Sign-off of each company-year's line mapping by the analyst (Bello). A company-year is "approved" only when it is listed
-# here AND has no open lines. Add an entry like:   DANGCEM: {FY2025: {approved_by: Bello, date: 2026-11-24}}
-signoff: {}
+# here AND has no open lines. Signed off against chart of accounts v0.2 and the nine approved decisions in
+# config/mapping_decisions.yaml. A later change to the chart or the decisions needs a new sign-off.
+signoff:
+  DANGCEM:
+    FY2023: {approved_by: Bello, date: 2026-11-24, chart_version: "0.2"}
+    FY2024: {approved_by: Bello, date: 2026-11-24, chart_version: "0.2"}
+    FY2025: {approved_by: Bello, date: 2026-11-24, chart_version: "0.2"}
+  PRESCO:
+    FY2023: {approved_by: Bello, date: 2026-11-24, chart_version: "0.2"}
+    FY2024: {approved_by: Bello, date: 2026-11-24, chart_version: "0.2"}
+    FY2025: {approved_by: Bello, date: 2026-11-24, chart_version: "0.2"}
