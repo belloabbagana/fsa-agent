@@ -23,7 +23,7 @@ SYSTEM = (
     'Reply with JSON only: {"observation": "...", "why_it_matters": "..."}'
 )
 
-BANNED = re.compile(r"\b(fraud\w*|manipulat\w*|misstat\w*|decei\w*|scam\w*|cook\w*|buy\w*|sell\w*|hold(?:ing)?\s+rating|recommend\w*|undervalued|overvalued|wrongdoing|cheat\w*)\b", re.I)
+BANNED = re.compile(r"\b(fraud\w*|manipulat\w*|misstat\w*|decei\w*|scam\w*|cook\w*|buy|sell|hold(?:ing)?\s+rating|recommend\w*|undervalued|overvalued|wrongdoing|cheat\w*)\b", re.I)
 NUMBER = re.compile(r"(?<![\d.,])\d[\d,]*(?:\.\d+)?")
 
 
@@ -36,7 +36,7 @@ def prompt_for(rec: dict) -> str:
     figures = [{"name": f["name"], "show": show(f["value"]) if f["value"] is not None else "not available",
                 **({"unit": f["unit"]} if f.get("unit") else {}), **({"where": "; ".join(f"{s['statement']} p.{s['page']} '{s['label']}'" for s in f["source"])} if isinstance(f.get("source"), list) else {})}
                for f in rec["facts"]]
-    body = {"company": rec["ticker"], "fiscal_year": rec["fiscal_year"], "title": rec["title"], "what_triggered_it": rec["trigger"],
+    body = {"company": rec["ticker"], "fiscal_year": rec["fiscal_year"], "amounts_unit": "N millions (account amounts); ratios carry their own unit", "title": rec["title"], "what_triggered_it": rec["trigger"],
             "question_to_be_asked_later": rec["question"], "figures": figures}
     return "Write the finding for this item.\n" + json.dumps(body, indent=1)
 
@@ -105,6 +105,8 @@ def to_markdown(items: list[dict], ticker: str, fy: int) -> str:
             lines += [f"*The drafted wording failed the code checks ({r['text_checks']}). Use the facts in finding_candidates.md.*", ""]
         else:
             lines += [f"**What the figures show.** {r['observation']}", "", f"**Why it matters.** {r['why_it_matters']}", ""]
+        from fsa.findings.review import markdown_block
+        lines += markdown_block(r)
         lines += [f"**Question for management or public sources ({r['who_answers']}).** {r['question']}", "", "**Hypotheses and evidence**", ""]
         lines += [f"- {h['h']}  \n  would be confirmed by: {h['confirm']}; ruled out by: {h['rule_out']}" for h in r["hypotheses"]]
         lines += ["", "**Figures and sources**", ""]

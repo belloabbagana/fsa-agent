@@ -25,3 +25,8 @@ def test_parse_needs_both_fields():
 
 def test_a_currency_letter_before_a_figure_does_not_split_it():
     assert check_text(REC, "Operating cash flow was N70,020 million and payables used N73,834 million.") == []
+
+
+def test_selling_prices_are_fine_but_a_sell_call_is_not():
+    assert check_text(REC, "Selling and distribution costs rose.") == []
+    assert check_text(REC, "Investors should sell.")

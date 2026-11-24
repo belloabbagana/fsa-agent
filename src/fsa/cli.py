@@ -20,6 +20,7 @@ from fsa.analyse import ratios as rat
 from fsa.classify import draft as gdraft
 from fsa.findings import records as frec
 from fsa.findings import writer as fwr
+from fsa.findings import review as frv
 from fsa.findings import triggers as trg
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
@@ -506,6 +507,30 @@ def cmd_write_findings(args) -> None:
     print(f"wrote {out / 'findings.md'}")
 
 
+def cmd_review_findings(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    model = args.model or yaml.safe_load((ROOT / "config" / "models.yaml").read_text())["review_findings"]
+    out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    path = out / "findings.json"
+    if not path.exists():
+        raise SystemExit(f"No written findings for {ticker} FY{fy}. Run: ./fsa write-findings {ticker} FY{fy}")
+    items = json.loads(path.read_text())
+    levels = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
+    todo = [f for f in items if f["status"] == "written" and levels.get(f["materiality"], 9) <= levels[args.min_materiality]
+            and (args.redo or not f.get("review") or f["review"]["verdict"] == "not completed")]
+    if args.limit:
+        todo = todo[: args.limit]
+    print(f"{ticker} FY{fy}: {len(todo)} findings to review with {model} ({args.min_materiality} materiality or above)")
+    for f in todo:
+        new = frv.review_one(f, model)                         # stops the run if a different model answered
+        items[items.index(f)] = new
+        r = new["review"]
+        print(f"   {f['id']}: {r['verdict']} (tries {r['attempts']}, model {', '.join(r['reviewed_by'])}, cost ${r['cost_usd']:.3f})")
+        path.write_text(json.dumps(items, indent=2, default=str))          # saved after each, so a paused run resumes
+    (out / "findings.md").write_text(fwr.to_markdown(items, ticker, fy))
+    print(f"wrote {out / 'findings.md'}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -552,6 +577,9 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.set_defaults(func=cmd_write_findings)
+    rf = sub.add_parser("review-findings", help="Opus review of written findings (notes only; never edits the finding)")
+    rf.add_argument("ticker"); rf.add_argument("fy"); rf.add_argument("--model"); rf.add_argument("--limit", type=int, default=0)
+    rf.add_argument("--min-materiality", default="high", choices=["high", "medium", "low"]); rf.add_argument("--redo", action="store_true"); rf.set_defaults(func=cmd_review_findings)
     args = p.parse_args()
     args.func(args)
 
