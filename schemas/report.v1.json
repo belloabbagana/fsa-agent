@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FSA Agent report v1 (draft)",
+  "type": "object",
+  "required": ["schema", "version", "status", "ticker", "company", "fiscal_year", "disclaimer", "not_generated", "scorecards", "findings", "data_notes"],
+  "properties": {
+    "schema": {"const": "report.v1"},
+    "version": {"type": "string"},
+    "status": {"enum": ["draft", "reviewed", "published"]},
+    "ticker": {"type": "string"},
+    "company": {"type": "string"},
+    "fiscal_year": {"type": "integer"},
+    "disclaimer": {"type": "string"},
+    "not_generated": {"type": "object"},
+    "scorecards": {"type": "object"},
+    "data_notes": {"type": "array", "items": {"type": "object", "required": ["category", "severity", "text"]}},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "section", "title", "numbers", "question", "why_i_am_asking", "hypotheses", "materiality", "type", "who_answers", "status", "version"],
+        "properties": {
+          "id": {"type": "string"},
+          "section": {"type": "string", "pattern": "^[A-M]$"},
+          "observation": {"type": ["string", "null"]},
+          "numbers": {"type": "array", "items": {"type": "object", "required": ["name", "value"]}},
+          "materiality": {"enum": ["high", "medium", "low", "unrated"]},
+          "type": {"enum": ["risk", "opportunity", "trend", "market concern"]},
+          "who_answers": {"enum": ["management", "public sources", "field check"]},
+          "status": {"enum": ["open", "answered"]},
+          "wording_status": {"enum": ["written", "needs a person"]}
+        }
+      }
+    }
+  }
+}

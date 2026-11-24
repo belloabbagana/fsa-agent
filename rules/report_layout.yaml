@@ -1,0 +1,75 @@
+# Report layout v0.1-draft: which rows each scorecard shows (agent instructions section 17, B to E).
+# Bello owns this file: add, remove or reorder rows freely. `expr` is any account code, metric (EBITDA, FCF, NET_DEBT ...) or
+# ratio id from rules/ratios.yaml and rules/forensic.yaml. `unit` only controls display: m = N millions, pct, x, days.
+# A row that cannot be computed for a year shows N/M (not meaningful) or n/a (input missing), never zero.
+years_shown: 3
+scorecards:
+  B:
+    title: Financial performance scorecard
+    rows:
+      - {label: Revenue, expr: PL_REVENUE, unit: m}
+      - {label: Revenue growth, expr: revenue_growth, unit: pct}
+      - {label: Gross profit, expr: PL_GROSS_PROFIT, unit: m}
+      - {label: Gross margin, expr: gross_margin, unit: pct}
+      - {label: EBITDA, expr: EBITDA, unit: m}
+      - {label: EBITDA margin, expr: ebitda_margin, unit: pct}
+      - {label: Operating profit, expr: PL_OPERATING_PROFIT, unit: m}
+      - {label: Operating margin, expr: operating_margin, unit: pct}
+      - {label: Profit before tax, expr: PL_PROFIT_BEFORE_TAX, unit: m}
+      - {label: Profit for the year, expr: PL_PROFIT_FOR_YEAR, unit: m}
+      - {label: Net margin, expr: net_margin, unit: pct}
+      - {label: ROE, expr: roe, unit: pct}
+      - {label: ROA, expr: roa, unit: pct}
+      - {label: ROIC, expr: roic, unit: pct}
+  C:
+    title: Balance sheet scorecard
+    rows:
+      - {label: Cash, expr: BS_CASH, unit: m}
+      - {label: Trade receivables, expr: BS_TRADE_RECEIVABLES, unit: m}
+      - {label: Inventories, expr: BS_INVENTORIES, unit: m}
+      - {label: Total current assets, expr: BS_TOTAL_CURRENT_ASSETS, unit: m}
+      - {label: Total assets, expr: BS_TOTAL_ASSETS, unit: m}
+      - {label: Current borrowings, expr: BS_BORROWINGS_C, unit: m}
+      - {label: Non-current borrowings, expr: BS_BORROWINGS_NC, unit: m}
+      - {label: Total liabilities, expr: BS_TOTAL_LIABILITIES, unit: m}
+      - {label: Total equity, expr: BS_TOTAL_EQUITY, unit: m}
+      - {label: Net debt (excludes leases), expr: NET_DEBT, unit: m}
+      - {label: Current ratio, expr: current_ratio, unit: x}
+      - {label: Debt to equity, expr: debt_to_equity, unit: x}
+  D:
+    title: Cash flow scorecard
+    rows:
+      - {label: Operating cash flow, expr: CF_OPERATING, unit: m}
+      - {label: Investing cash flow, expr: CF_INVESTING, unit: m}
+      - {label: Financing cash flow, expr: CF_FINANCING, unit: m}
+      - {label: Capital expenditure, expr: CAPEX, unit: m}
+      - {label: Free cash flow, expr: FCF, unit: m}
+      - {label: Operating cash flow / profit, expr: cfo_to_net_income, unit: x}
+      - {label: Free cash flow / profit, expr: fcf_to_net_income, unit: x}
+  E:
+    title: Key ratios
+    rows:
+      - {label: Interest cover, expr: interest_cover, unit: x}
+      - {label: Net debt / EBITDA, expr: net_debt_to_ebitda, unit: x}
+      - {label: Days sales outstanding, expr: dso, unit: days}
+      - {label: Days inventory, expr: dio, unit: days}
+      - {label: Days payable, expr: dpo, unit: days}
+      - {label: Cash conversion cycle, expr: cash_conversion_cycle, unit: days}
+      - {label: Asset turnover, expr: asset_turnover, unit: x}
+      - {label: Effective tax rate, expr: effective_tax_rate, unit: pct}
+      - {label: Dividend payout (cash), expr: dividend_payout_cash, unit: pct}
+# Sections with no scorecard rows of their own list the findings whose rule sits in that letter.
+section_titles:
+  A: Executive summary
+  B: Financial performance
+  C: Balance sheet
+  D: Cash flow
+  E: Key ratio analysis
+  F: Earnings quality
+  G: Forensic indicators
+  H: Management and capital allocation
+  I: Sector and macro context
+  J: Historical trend
+  K: Peer comparison
+  L: Key questions for further investigation
+  M: Final conclusion

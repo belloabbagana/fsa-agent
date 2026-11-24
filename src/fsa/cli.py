@@ -22,6 +22,7 @@ from fsa.findings import records as frec
 from fsa.findings import writer as fwr
 from fsa.findings import review as frv
 from fsa.findings import triggers as trg
+from fsa.report import assemble as asm
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
@@ -509,6 +510,22 @@ def cmd_write_findings(args) -> None:
     print(f"wrote {out / 'findings.md'}")
 
 
+def cmd_report(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    chart, con = load_chart(), connect()
+    company = next(c for c in yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())["companies"] if c["ticker"] == ticker)
+    if company.get("conflict_check") != "pass":
+        raise SystemExit(f"{ticker} has no conflict-check pass in config/companies.yaml; no report is built (project rule 3).")
+    rep = asm.build_report(con, chart, rat.load_rules(), company, ticker, fy)
+    import jsonschema
+    jsonschema.validate(rep, json.loads((ROOT / "schemas" / "report.v1.json").read_text()))
+    out = ROOT / "reports" / ticker / f"FY{fy}"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.json").write_text(json.dumps(rep, indent=2, ensure_ascii=False, default=str))
+    (out / "report.md").write_text(asm.to_markdown(rep))
+    print(f"{ticker} FY{fy}: {len(rep['findings'])} findings, scorecards {', '.join(rep['scorecards'])}; missing inputs: {rep['inputs_missing'] or 'none'}\nwrote {out / 'report.md'} and report.json")
+
+
 def cmd_review_findings(args) -> None:
     ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
     model = args.model or yaml.safe_load((ROOT / "config" / "models.yaml").read_text())["review_findings"]
@@ -580,6 +597,8 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
+    rp = sub.add_parser("report", help="Assemble the Markdown and JSON report for a company-year from findings, scorecards and data notes")
+    rp.add_argument("ticker"); rp.add_argument("fy"); rp.set_defaults(func=cmd_report)
     rf = sub.add_parser("review-findings", help="Opus review of written findings (notes only; never edits the finding)")
     rf.add_argument("ticker"); rf.add_argument("fy"); rf.add_argument("--model"); rf.add_argument("--limit", type=int, default=0)
     rf.add_argument("--min-materiality", default="high", choices=["high", "medium", "low"]); rf.add_argument("--redo", action="store_true"); rf.add_argument("--ids", nargs="*", help="only these finding ids"); rf.set_defaults(func=cmd_review_findings)
