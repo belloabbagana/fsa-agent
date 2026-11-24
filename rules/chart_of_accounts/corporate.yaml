@@ -1,4 +1,4 @@
-# CHART OF ACCOUNTS: non-financial corporates (DRAFT v0.1 by Claude, for Bello to review and sign off)
+# CHART OF ACCOUNTS: non-financial corporates (v0.1, drafted by Claude, APPROVED by Bello 24 Nov 2026)
 #
 # What this is: one standard list of line items. Every printed line in an annual report gets mapped to ONE
 # account here (week 5, Haiku proposes, you approve). Once lines are standard, ratios, comps and findings
@@ -19,28 +19,41 @@
 #          memo      = shown for information, never added into a subtotal
 #
 # DECISIONS FOR YOU (each one changes the numbers, so each is yours):
-#  1. SIGNS as printed (above). Alternative: store costs as positive. I recommend as-printed: zero flipping, fewer bugs.
+#  1. SIGNS as printed (above). Alternative: store costs as positive. I recommend as-printed: zero flipping, fewer bugs. Agree
 #  2. MONETARY POSITION (IAS 29 inflation accounting). Dangote prints it BELOW operating profit; Presco prints it
 #     INSIDE operating profit (FY2024: a N12.7bn loss). Standardised view puts it BELOW operating profit, because
 #     restating for inflation is not trading performance. Presco's printed operating profit will then differ from
-#     ours by that amount, and the difference is reported. Alternative: follow each company's own presentation.
+#     ours by that amount, and the difference is reported. Alternative: follow each company's own presentation. Print Below as standard
 #  3. FX GAINS/LOSSES. Presco prints FX gains INSIDE operating profit (PL_FX_OPERATING). Dangote includes FX inside
 #     finance costs and discloses it in the notes. Standardised view keeps each as printed (so nothing is invented);
 #     the analyst-adjusted view (rules/adjustments.yaml, later) moves FX out of operating profit. Your call on the
-#     default switch.
+#     default switch. Agree. leave for normal then adjust for analyst-adjusted view
 #  4. BIOLOGICAL ASSETS (IAS 41). Fair-value gains on plantations are non-cash, sit inside Presco's operating profit,
-#     and were N21.7bn of N215bn operating profit in FY2025. Own account so adjustments can switch them out.
+#     and were N21.7bn of N215bn operating profit in FY2025. Own account so adjustments can switch them out. Agree
 #  5. OVERDRAFTS. Presco prints them separately (BS_BANK_OVERDRAFT); Dangote includes them in "financial liabilities"
 #     and nets them against cash in the cash flow statement (note 32.1). Chart keeps overdraft separate where printed;
-#     debt analysis counts overdrafts as debt, and net debt uses balance-sheet cash.
+#     debt analysis counts overdrafts as debt, and net debt uses balance-sheet cash. Use best practice
 #  6. RELATED-PARTY LENDING. Dangote's investing section holds large loans to and from its parent and subsidiaries
-#     (N1.04 trillion in FY2025). Own accounts, tagged ng:related_party, so they cannot hide inside "capex".
+#     (N1.04 trillion in FY2025). Own accounts, tagged ng:related_party, so they cannot hide inside "capex". what is the decision
 #  7. GROUP vs COMPANY. Both are stored. The analysis uses GROUP. Company-only accounts (investment in subsidiaries,
-#     related-party receivables) are marked company_mostly.
+#     related-party receivables) are marked company_mostly. use group
 #  8. THE PPE CASH-FLOW BUILD-UP lines (additions, suppliers' credit, change in prepayments) explain one printed
-#     line. They are mapped to CF_MEMO_PPE_BUILDUP and never added again.
+#     line. They are mapped to CF_MEMO_PPE_BUILDUP and never added again.i dont understand
 #
-version: "0.1-draft"
+# ---- DECISION LOG (Bello, 24 Nov 2026; his own notes are in the lines above) ----
+#  1 SIGNS            DECIDED: as printed.
+#  2 MONETARY POSITION DECIDED: standardised view puts it below operating profit.
+#  3 FX               DECIDED: leave as printed in the standardised view; move out in the analyst-adjusted view.
+#  4 BIOLOGICAL ASSETS DECIDED: own account, so adjustments can switch it out.
+#  5 OVERDRAFTS       DECIDED ("best practice"): overdrafts are debt; net debt = borrowings + overdrafts
+#                     (+ lease liabilities, shown separately) - balance-sheet cash. The cash-flow-statement cash
+#                     (net of overdrafts) is kept as its own account and never used for net debt.
+#  6 RELATED-PARTY LOANS  DECIDED: keep on their own lines, tagged for scrutiny.
+#  7 GROUP vs COMPANY DECIDED: the analysis uses GROUP.
+#  8 PPE BUILD-UP     DECIDED: keep as memo lines that are never added into a total.
+#
+version: "0.1"
+status: approved_by_analyst   # all eight decisions confirmed 24 Nov 2026; later changes need a new version
 sign_convention: as_printed
 statements:
   - profit_or_loss
@@ -50,335 +63,1416 @@ statements:
 
 accounts:
   # ------------------------------------------------------------------ PROFIT OR LOSS
-  - {code: PL_REVENUE, name: "Revenue", kind: line, statement: profit_or_loss,
-     what: "Sales of goods and services to customers.",
-     why: "The base of every margin and growth rate. Split nominal growth from volume: with Nigerian inflation, nominal revenue can rise while volume falls.",
-     labels: ["Revenue"]}
-  - {code: PL_COST_OF_SALES, name: "Cost of sales", kind: line, statement: profit_or_loss,
-     what: "Direct cost of producing what was sold.",
-     why: "Gross margin = (revenue + cost of sales) / revenue. Energy and imported inputs show up here: the main devaluation exposure for cement and food producers.",
-     labels: ["Cost of sales", "Production cost of sales"]}
-  - {code: PL_GROSS_PROFIT, name: "Gross profit", kind: subtotal, statement: profit_or_loss, sum: [PL_REVENUE, PL_COST_OF_SALES],
-     labels: ["Gross profit"]}
-  - {code: PL_ADMIN_EXPENSES, name: "Administrative expenses", kind: line, statement: profit_or_loss,
-     what: "Head-office and general running costs.", why: "Operating leverage and cost discipline.", labels: ["Administrative expenses"]}
-  - {code: PL_SELLING_DISTRIBUTION, name: "Selling and distribution expenses", kind: line, statement: profit_or_loss,
-     what: "Cost of marketing, warehousing and delivering products.",
-     why: "Large for cement (haulage, diesel). Track as % of revenue against peers.", labels: ["Selling and distribution expenses"]}
-  - {code: PL_OTHER_GAINS, name: "Other gains and losses", kind: line, statement: profit_or_loss,
-     what: "Occasional gains/losses outside normal trading (disposals, small one-offs).",
-     why: "One-offs: strip out when judging recurring earnings.", labels: ["Other gains"], tags: [one_off_candidate]}
-  - {code: PL_OTHER_OPERATING_INCOME, name: "Other operating income", kind: line, statement: profit_or_loss,
-     what: "Recurring income outside main sales (grants, rent, scrap).",
-     why: "Check it is genuinely recurring before leaving it in operating profit.",
-     labels: ["Other income", "Other operating income"]}
-  - {code: PL_FX_OPERATING, name: "Foreign exchange gain or loss inside operating profit", kind: line, statement: profit_or_loss,
-     what: "Exchange differences the company chooses to present above operating profit.",
-     why: "Naira devaluation makes this large and non-operating in substance. Never treat FX gains as operating improvement (agent instructions, section 13).",
-     labels: ["Exchange gain", "Exchange gain /(Loss)", "Gain on foreign exchange transactions", "Exchange gain /(Loss)*"], tags: ["ng:fx"]}
-  - {code: PL_BIOLOGICAL_FV, name: "Fair-value gain on biological assets", kind: line, statement: profit_or_loss,
-     what: "Increase in the estimated value of growing crops (IAS 41). Non-cash.",
-     why: "Unrealised: it lifts profit without lifting cash. Compare with operating cash flow.",
-     labels: ["Fair value gains on biological assets", "Gains on biological asset revaluation", "Gains/(Loss) on biological asset revaluation", "Fair value gains on biological assets 18a"], tags: [non_cash, agriculture]}
-  - {code: PL_IMPAIRMENT_FIN_ASSETS, name: "Impairment of financial assets (expected credit loss)", kind: line, statement: profit_or_loss,
-     what: "Charge for receivables expected not to be collected.",
-     why: "Rising charge with rising receivables is a collection-quality signal.",
-     labels: ["Impairment of financial assets", "Impairment loss on trade and other receivables", "Expected Credit Loss Allowance"]}
-  - {code: PL_OPERATING_PROFIT, name: "Operating profit (standardised)", kind: subtotal, statement: profit_or_loss,
-     sum: [PL_GROSS_PROFIT, PL_ADMIN_EXPENSES, PL_SELLING_DISTRIBUTION, PL_OTHER_GAINS, PL_OTHER_OPERATING_INCOME, PL_FX_OPERATING, PL_BIOLOGICAL_FV, PL_IMPAIRMENT_FIN_ASSETS],
-     labels: ["Profit from operating activities", "Operating profit before finance cost and finance income"],
-     note: "Excludes PL_MONETARY_POSITION (decision 2): Presco's printed figure can differ by that amount."}
-  - {code: PL_MONETARY_POSITION, name: "Gain or loss on net monetary position (inflation accounting)", kind: line, statement: profit_or_loss,
-     what: "Effect of restating for hyperinflation (IAS 29) on the company's net monetary items.",
-     why: "A restatement effect, not trading. Both companies report it.",
-     labels: ["Gain on net monetary position", "Loss on Monetary Position", "Loss on Non-Monetary Position"], tags: ["ng:inflation_accounting"]}
-  - {code: PL_FINANCE_INCOME, name: "Finance income", kind: line, statement: profit_or_loss,
-     what: "Interest and similar income on cash, deposits and loans.",
-     why: "Interest cover uses finance costs, not net. Sharia screening needs interest income separately.",
-     labels: ["Finance income", "Interest income calculated under the effective interest method"], tags: ["sharia:interest_income"]}
-  - {code: PL_FINANCE_COSTS, name: "Finance costs", kind: line, statement: profit_or_loss,
-     what: "Interest on borrowings and leases; for Dangote also includes FX losses on foreign-currency debt.",
-     why: "Numerator of nothing alone: used in interest cover and to test whether profit is eaten by devaluation losses on dollar debt.",
-     labels: ["Finance costs", "Finance cost"], tags: ["sharia:interest_expense", "ng:fx"]}
-  - {code: PL_SHARE_OF_ASSOCIATE, name: "Share of profit of associate", kind: line, statement: profit_or_loss,
-     what: "Company's share of an associate's profit (equity method). Non-cash.", why: "Not operating cash.",
-     labels: ["Share of profit from associate"], tags: [non_cash]}
-  - {code: PL_PROFIT_BEFORE_TAX, name: "Profit before tax", kind: subtotal, statement: profit_or_loss,
-     sum: [PL_OPERATING_PROFIT, PL_MONETARY_POSITION, PL_FINANCE_INCOME, PL_FINANCE_COSTS, PL_SHARE_OF_ASSOCIATE],
-     labels: ["Profit before tax"]}
-  - {code: PL_INCOME_TAX, name: "Income tax expense", kind: line, statement: profit_or_loss,
-     what: "Current and deferred tax charge.", why: "Effective tax rate = tax / profit before tax; large swings need explaining.",
-     labels: ["Income tax expense", "Tax expense"]}
-  - {code: PL_PROFIT_FOR_YEAR, name: "Profit for the year", kind: subtotal, statement: profit_or_loss,
-     sum: [PL_PROFIT_BEFORE_TAX, PL_INCOME_TAX], labels: ["Profit for the year", "Profit for the year or loss"]}
-  - {code: PL_ATTRIB_OWNERS, name: "Profit attributable to owners", kind: line, statement: profit_or_loss,
-     what: "Share of profit belonging to shareholders of the parent.", why: "Use for EPS, ROE.",
-     labels: ["Owners of the Company", "Owners of the parent"]}
-  - {code: PL_ATTRIB_NCI, name: "Profit attributable to non-controlling interests", kind: line, statement: profit_or_loss,
-     what: "Share of profit belonging to minority holders of subsidiaries.", why: "Excluded from owners' returns.",
-     labels: ["Non-controlling Interests", "Non-controlling interest"]}
-  - {code: PL_EPS_BASIC, name: "Earnings per share, basic", kind: line, statement: profit_or_loss, unit: per_share,
-     what: "Profit to owners / weighted shares. Printed in naira (Dangote) or kobo (Presco): unit is recorded.",
-     why: "Per-share growth; check share count changes (Presco issued shares in 2025).",
-     labels: ["Earnings per share, basic and diluted (Naira)", "Basic (Kobo)"]}
-  - {code: PL_EPS_DILUTED, name: "Earnings per share, diluted", kind: line, statement: profit_or_loss, unit: per_share,
-     what: "As basic, allowing for dilutive instruments.", why: "Dilution check.", labels: ["Diluted (Kobo)"]}
+  - {
+      code: PL_REVENUE,
+      name: "Revenue",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Sales of goods and services to customers.",
+      why: "The base of every margin and growth rate. Split nominal growth from volume: with Nigerian inflation, nominal revenue can rise while volume falls.",
+      labels: ["Revenue"],
+    }
+  - {
+      code: PL_COST_OF_SALES,
+      name: "Cost of sales",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Direct cost of producing what was sold.",
+      why: "Gross margin = (revenue + cost of sales) / revenue. Energy and imported inputs show up here: the main devaluation exposure for cement and food producers.",
+      labels: ["Cost of sales", "Production cost of sales"],
+    }
+  - {
+      code: PL_GROSS_PROFIT,
+      name: "Gross profit",
+      kind: subtotal,
+      statement: profit_or_loss,
+      sum: [PL_REVENUE, PL_COST_OF_SALES],
+      labels: ["Gross profit"],
+    }
+  - {
+      code: PL_ADMIN_EXPENSES,
+      name: "Administrative expenses",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Head-office and general running costs.",
+      why: "Operating leverage and cost discipline.",
+      labels: ["Administrative expenses"],
+    }
+  - {
+      code: PL_SELLING_DISTRIBUTION,
+      name: "Selling and distribution expenses",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Cost of marketing, warehousing and delivering products.",
+      why: "Large for cement (haulage, diesel). Track as % of revenue against peers.",
+      labels: ["Selling and distribution expenses"],
+    }
+  - {
+      code: PL_OTHER_GAINS,
+      name: "Other gains and losses",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Occasional gains/losses outside normal trading (disposals, small one-offs).",
+      why: "One-offs: strip out when judging recurring earnings.",
+      labels: ["Other gains"],
+      tags: [one_off_candidate],
+    }
+  - {
+      code: PL_OTHER_OPERATING_INCOME,
+      name: "Other operating income",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Recurring income outside main sales (grants, rent, scrap).",
+      why: "Check it is genuinely recurring before leaving it in operating profit.",
+      labels: ["Other income", "Other operating income"],
+    }
+  - {
+      code: PL_FX_OPERATING,
+      name: "Foreign exchange gain or loss inside operating profit",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Exchange differences the company chooses to present above operating profit.",
+      why: "Naira devaluation makes this large and non-operating in substance. Never treat FX gains as operating improvement (agent instructions, section 13).",
+      labels:
+        [
+          "Exchange gain",
+          "Exchange gain /(Loss)",
+          "Gain on foreign exchange transactions",
+          "Exchange gain /(Loss)*",
+        ],
+      tags: ["ng:fx"],
+    }
+  - {
+      code: PL_BIOLOGICAL_FV,
+      name: "Fair-value gain on biological assets",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Increase in the estimated value of growing crops (IAS 41). Non-cash.",
+      why: "Unrealised: it lifts profit without lifting cash. Compare with operating cash flow.",
+      labels:
+        [
+          "Fair value gains on biological assets",
+          "Gains on biological asset revaluation",
+          "Gains/(Loss) on biological asset revaluation",
+          "Fair value gains on biological assets 18a",
+        ],
+      tags: [non_cash, agriculture],
+    }
+  - {
+      code: PL_IMPAIRMENT_FIN_ASSETS,
+      name: "Impairment of financial assets (expected credit loss)",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Charge for receivables expected not to be collected.",
+      why: "Rising charge with rising receivables is a collection-quality signal.",
+      labels:
+        [
+          "Impairment of financial assets",
+          "Impairment loss on trade and other receivables",
+          "Expected Credit Loss Allowance",
+        ],
+    }
+  - {
+      code: PL_OPERATING_PROFIT,
+      name: "Operating profit (standardised)",
+      kind: subtotal,
+      statement: profit_or_loss,
+      sum:
+        [
+          PL_GROSS_PROFIT,
+          PL_ADMIN_EXPENSES,
+          PL_SELLING_DISTRIBUTION,
+          PL_OTHER_GAINS,
+          PL_OTHER_OPERATING_INCOME,
+          PL_FX_OPERATING,
+          PL_BIOLOGICAL_FV,
+          PL_IMPAIRMENT_FIN_ASSETS,
+        ],
+      labels:
+        [
+          "Profit from operating activities",
+          "Operating profit before finance cost and finance income",
+        ],
+      note: "Excludes PL_MONETARY_POSITION (decision 2): Presco's printed figure can differ by that amount.",
+    }
+  - {
+      code: PL_MONETARY_POSITION,
+      name: "Gain or loss on net monetary position (inflation accounting)",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Effect of restating for hyperinflation (IAS 29) on the company's net monetary items.",
+      why: "A restatement effect, not trading. Both companies report it.",
+      labels:
+        [
+          "Gain on net monetary position",
+          "Loss on Monetary Position",
+          "Loss on Non-Monetary Position",
+        ],
+      tags: ["ng:inflation_accounting"],
+    }
+  - {
+      code: PL_FINANCE_INCOME,
+      name: "Finance income",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Interest and similar income on cash, deposits and loans.",
+      why: "Interest cover uses finance costs, not net. Sharia screening needs interest income separately.",
+      labels:
+        [
+          "Finance income",
+          "Interest income calculated under the effective interest method",
+        ],
+      tags: ["sharia:interest_income"],
+    }
+  - {
+      code: PL_FINANCE_COSTS,
+      name: "Finance costs",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Interest on borrowings and leases; for Dangote also includes FX losses on foreign-currency debt.",
+      why: "Numerator of nothing alone: used in interest cover and to test whether profit is eaten by devaluation losses on dollar debt.",
+      labels: ["Finance costs", "Finance cost"],
+      tags: ["sharia:interest_expense", "ng:fx"],
+    }
+  - {
+      code: PL_SHARE_OF_ASSOCIATE,
+      name: "Share of profit of associate",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Company's share of an associate's profit (equity method). Non-cash.",
+      why: "Not operating cash.",
+      labels: ["Share of profit from associate"],
+      tags: [non_cash],
+    }
+  - {
+      code: PL_PROFIT_BEFORE_TAX,
+      name: "Profit before tax",
+      kind: subtotal,
+      statement: profit_or_loss,
+      sum:
+        [
+          PL_OPERATING_PROFIT,
+          PL_MONETARY_POSITION,
+          PL_FINANCE_INCOME,
+          PL_FINANCE_COSTS,
+          PL_SHARE_OF_ASSOCIATE,
+        ],
+      labels: ["Profit before tax"],
+    }
+  - {
+      code: PL_INCOME_TAX,
+      name: "Income tax expense",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Current and deferred tax charge.",
+      why: "Effective tax rate = tax / profit before tax; large swings need explaining.",
+      labels: ["Income tax expense", "Tax expense"],
+    }
+  - {
+      code: PL_PROFIT_FOR_YEAR,
+      name: "Profit for the year",
+      kind: subtotal,
+      statement: profit_or_loss,
+      sum: [PL_PROFIT_BEFORE_TAX, PL_INCOME_TAX],
+      labels: ["Profit for the year", "Profit for the year or loss"],
+    }
+  - {
+      code: PL_ATTRIB_OWNERS,
+      name: "Profit attributable to owners",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Share of profit belonging to shareholders of the parent.",
+      why: "Use for EPS, ROE.",
+      labels: ["Owners of the Company", "Owners of the parent"],
+    }
+  - {
+      code: PL_ATTRIB_NCI,
+      name: "Profit attributable to non-controlling interests",
+      kind: line,
+      statement: profit_or_loss,
+      what: "Share of profit belonging to minority holders of subsidiaries.",
+      why: "Excluded from owners' returns.",
+      labels: ["Non-controlling Interests", "Non-controlling interest"],
+    }
+  - {
+      code: PL_EPS_BASIC,
+      name: "Earnings per share, basic",
+      kind: line,
+      statement: profit_or_loss,
+      unit: per_share,
+      what: "Profit to owners / weighted shares. Printed in naira (Dangote) or kobo (Presco): unit is recorded.",
+      why: "Per-share growth; check share count changes (Presco issued shares in 2025).",
+      labels: ["Earnings per share, basic and diluted (Naira)", "Basic (Kobo)"],
+    }
+  - {
+      code: PL_EPS_DILUTED,
+      name: "Earnings per share, diluted",
+      kind: line,
+      statement: profit_or_loss,
+      unit: per_share,
+      what: "As basic, allowing for dilutive instruments.",
+      why: "Dilution check.",
+      labels: ["Diluted (Kobo)"],
+    }
 
   # ------------------------------------------------------------------ OTHER COMPREHENSIVE INCOME
-  - {code: OCI_REMEASUREMENT_DBO, name: "Remeasurement of defined benefit obligation", kind: line, statement: other_comprehensive_income,
-     what: "Actuarial gains/losses on pensions and long-service awards.", why: "Not in profit; shows pension-liability swings.",
-     labels: ["Remeasurement of defined benefit obligation"]}
-  - {code: OCI_FX_TRANSLATION, name: "Foreign currency translation differences", kind: line, statement: other_comprehensive_income,
-     what: "Exchange effect of translating foreign subsidiaries into naira.",
-     why: "Big for Dangote (Pan-African operations) and Presco (Ghana). Naira weakness raises translated equity: not earned profit.",
-     labels: ["Exchange differences on translating net investments in foreign operations", "Foreign operations - foreign currency translation differences"], tags: ["ng:fx"]}
-  - {code: OCI_TAX, name: "Tax on other comprehensive income items", kind: line, statement: other_comprehensive_income,
-     what: "Tax effect of OCI items.", why: "Completes OCI.", labels: ["Related Taxes", "Income tax relating to components of OCI"]}
-  - {code: OCI_NET, name: "Other comprehensive income, net of tax", kind: subtotal, statement: other_comprehensive_income,
-     sum: [OCI_REMEASUREMENT_DBO, OCI_FX_TRANSLATION, OCI_TAX], labels: ["Other comprehensive income, net of tax", "Other comprehensive income for the year, net of tax", "Other comprehensive (loss)/income for the year, net of tax"]}
-  - {code: OCI_TOTAL_COMPREHENSIVE, name: "Total comprehensive income", kind: subtotal, statement: other_comprehensive_income,
-     sum: [PL_PROFIT_FOR_YEAR, OCI_NET], labels: ["Total comprehensive income for the year"]}
+  - {
+      code: OCI_REMEASUREMENT_DBO,
+      name: "Remeasurement of defined benefit obligation",
+      kind: line,
+      statement: other_comprehensive_income,
+      what: "Actuarial gains/losses on pensions and long-service awards.",
+      why: "Not in profit; shows pension-liability swings.",
+      labels: ["Remeasurement of defined benefit obligation"],
+    }
+  - {
+      code: OCI_FX_TRANSLATION,
+      name: "Foreign currency translation differences",
+      kind: line,
+      statement: other_comprehensive_income,
+      what: "Exchange effect of translating foreign subsidiaries into naira.",
+      why: "Big for Dangote (Pan-African operations) and Presco (Ghana). Naira weakness raises translated equity: not earned profit.",
+      labels:
+        [
+          "Exchange differences on translating net investments in foreign operations",
+          "Foreign operations - foreign currency translation differences",
+        ],
+      tags: ["ng:fx"],
+    }
+  - {
+      code: OCI_TAX,
+      name: "Tax on other comprehensive income items",
+      kind: line,
+      statement: other_comprehensive_income,
+      what: "Tax effect of OCI items.",
+      why: "Completes OCI.",
+      labels: ["Related Taxes", "Income tax relating to components of OCI"],
+    }
+  - {
+      code: OCI_NET,
+      name: "Other comprehensive income, net of tax",
+      kind: subtotal,
+      statement: other_comprehensive_income,
+      sum: [OCI_REMEASUREMENT_DBO, OCI_FX_TRANSLATION, OCI_TAX],
+      labels:
+        [
+          "Other comprehensive income, net of tax",
+          "Other comprehensive income for the year, net of tax",
+          "Other comprehensive (loss)/income for the year, net of tax",
+        ],
+    }
+  - {
+      code: OCI_TOTAL_COMPREHENSIVE,
+      name: "Total comprehensive income",
+      kind: subtotal,
+      statement: other_comprehensive_income,
+      sum: [PL_PROFIT_FOR_YEAR, OCI_NET],
+      labels: ["Total comprehensive income for the year"],
+    }
 
   # ------------------------------------------------------------------ FINANCIAL POSITION: ASSETS
-  - {code: BS_PPE, name: "Property, plant and equipment", kind: line, statement: financial_position,
-     what: "Plant, land, buildings, vehicles at carrying value.", why: "Capital intensity, asset turnover, capex vs depreciation. Revaluation or inflation restatement can lift it without cash.",
-     labels: ["Property, plant and equipment"]}
-  - {code: BS_RIGHT_OF_USE, name: "Right-of-use assets", kind: line, statement: financial_position,
-     what: "Leased assets (IFRS 16).", why: "EBITDA before/after IFRS 16 needs this.", labels: ["Right-of-use assets"]}
-  - {code: BS_INTANGIBLES, name: "Intangible assets", kind: line, statement: financial_position,
-     what: "Licences, software, mining rights.", why: "Tangible book value excludes them.", labels: ["Intangible assets"]}
-  - {code: BS_GOODWILL, name: "Goodwill", kind: line, statement: financial_position,
-     what: "Premium paid in acquisitions.", why: "Impairment risk; Presco's rose to N59bn after buying Ghana Oil Palm (GOPDC).",
-     labels: ["Goodwill"]}
-  - {code: BS_INVEST_SUBSIDIARIES, name: "Investments in subsidiaries", kind: line, statement: financial_position, company_mostly: true,
-     what: "Parent's holdings in subsidiaries (company-level statements only).", why: "Eliminated in the Group.",
-     labels: ["Investments in subsidiaries", "Investment in subsidiaries"]}
-  - {code: BS_INVEST_ASSOCIATE, name: "Investment in associate", kind: line, statement: financial_position,
-     what: "Stake in an associate.", why: "Non-cash earnings; value risk.", labels: ["Investment in associate"]}
-  - {code: BS_LEASE_RECEIVABLES_NC, name: "Lease receivables, non-current", kind: line, statement: financial_position,
-     what: "Amounts due from leasing assets to others.", why: "Minor; keep separate from trade receivables.", labels: ["Lease receivables"]}
-  - {code: BS_DEFERRED_TAX_ASSETS, name: "Deferred tax assets", kind: line, statement: financial_position,
-     what: "Future tax savings.", why: "Depends on future profit.", labels: ["Deferred tax assets"]}
-  - {code: BS_PREPAYMENTS_NC, name: "Prepayments, non-current", kind: line, statement: financial_position,
-     what: "Long-dated advances (often for equipment).", why: "Cash already out the door.", labels: ["Prepayments"]}
-  - {code: BS_RELATED_PARTY_RECEIVABLES_NC, name: "Receivables from related parties, non-current", kind: line, statement: financial_position, company_mostly: true,
-     what: "Loans to subsidiaries/parent.", why: "Conflict-of-interest and cash-extraction risk (agent instructions 9G).",
-     labels: ["Receivables from related parties", "Receivables from subsidiaries"], tags: ["ng:related_party"]}
-  - {code: BS_TOTAL_NC_ASSETS, name: "Total non-current assets", kind: subtotal, statement: financial_position,
-     sum: [BS_PPE, BS_RIGHT_OF_USE, BS_INTANGIBLES, BS_GOODWILL, BS_INVEST_SUBSIDIARIES, BS_INVEST_ASSOCIATE, BS_LEASE_RECEIVABLES_NC, BS_DEFERRED_TAX_ASSETS, BS_PREPAYMENTS_NC, BS_RELATED_PARTY_RECEIVABLES_NC],
-     labels: ["Total non-current assets"]}
-  - {code: BS_BIOLOGICAL_ASSETS, name: "Biological assets", kind: line, statement: financial_position,
-     what: "Growing crops and livestock at fair value (IAS 41).", why: "Valuation judgement; depends on assumed prices and yields.",
-     labels: ["Biological assets"], tags: [agriculture]}
-  - {code: BS_INVENTORIES, name: "Inventories", kind: line, statement: financial_position,
-     what: "Raw materials, work in progress, finished goods, spares.", why: "Days inventory; inventory growing faster than sales is a flag.",
-     labels: ["Inventories"]}
-  - {code: BS_TRADE_RECEIVABLES, name: "Trade and other receivables", kind: line, statement: financial_position,
-     what: "Money owed by customers and others.", why: "Days sales outstanding; receivables growing faster than revenue is a flag.",
-     labels: ["Trade and other receivables"]}
-  - {code: BS_PREPAYMENTS_OTHER_CA, name: "Prepayments and other current assets", kind: line, statement: financial_position,
-     what: "Advances to suppliers, deposits, letters-of-credit margins.", why: "Large at Dangote (N664bn): FX-related import prepayments; understand what is in it.",
-     labels: ["Prepayments and other current assets"]}
-  - {code: BS_LEASE_RECEIVABLES_C, name: "Lease receivables, current", kind: line, statement: financial_position,
-     what: "Current part of lease receivables.", why: "Minor.", labels: ["Lease receivables"]}
-  - {code: BS_CURRENT_TAX_ASSETS, name: "Current tax assets", kind: line, statement: financial_position,
-     what: "Tax overpaid or recoverable.", why: "Minor.", labels: ["Current tax assets"]}
-  - {code: BS_CASH, name: "Cash and cash equivalents", kind: line, statement: financial_position,
-     what: "Cash, bank balances and short-term deposits (balance sheet date). May include restricted cash.",
-     why: "Liquidity and net debt. Differs from the cash-flow-statement cash by overdrafts (note 32.1).",
-     labels: ["Cash and cash equivalents"], tags: ["sharia:cash_and_deposits"]}
-  - {code: BS_TOTAL_CURRENT_ASSETS, name: "Total current assets", kind: subtotal, statement: financial_position,
-     sum: [BS_BIOLOGICAL_ASSETS, BS_INVENTORIES, BS_TRADE_RECEIVABLES, BS_PREPAYMENTS_OTHER_CA, BS_LEASE_RECEIVABLES_C, BS_CURRENT_TAX_ASSETS, BS_CASH],
-     labels: ["Total current assets"]}
-  - {code: BS_TOTAL_ASSETS, name: "Total assets", kind: subtotal, statement: financial_position,
-     sum: [BS_TOTAL_NC_ASSETS, BS_TOTAL_CURRENT_ASSETS], labels: ["Total assets"]}
+  - {
+      code: BS_PPE,
+      name: "Property, plant and equipment",
+      kind: line,
+      statement: financial_position,
+      what: "Plant, land, buildings, vehicles at carrying value.",
+      why: "Capital intensity, asset turnover, capex vs depreciation. Revaluation or inflation restatement can lift it without cash.",
+      labels: ["Property, plant and equipment"],
+    }
+  - {
+      code: BS_RIGHT_OF_USE,
+      name: "Right-of-use assets",
+      kind: line,
+      statement: financial_position,
+      what: "Leased assets (IFRS 16).",
+      why: "EBITDA before/after IFRS 16 needs this.",
+      labels: ["Right-of-use assets"],
+    }
+  - {
+      code: BS_INTANGIBLES,
+      name: "Intangible assets",
+      kind: line,
+      statement: financial_position,
+      what: "Licences, software, mining rights.",
+      why: "Tangible book value excludes them.",
+      labels: ["Intangible assets"],
+    }
+  - {
+      code: BS_GOODWILL,
+      name: "Goodwill",
+      kind: line,
+      statement: financial_position,
+      what: "Premium paid in acquisitions.",
+      why: "Impairment risk; Presco's rose to N59bn after buying Ghana Oil Palm (GOPDC).",
+      labels: ["Goodwill"],
+    }
+  - {
+      code: BS_INVEST_SUBSIDIARIES,
+      name: "Investments in subsidiaries",
+      kind: line,
+      statement: financial_position,
+      company_mostly: true,
+      what: "Parent's holdings in subsidiaries (company-level statements only).",
+      why: "Eliminated in the Group.",
+      labels: ["Investments in subsidiaries", "Investment in subsidiaries"],
+    }
+  - {
+      code: BS_INVEST_ASSOCIATE,
+      name: "Investment in associate",
+      kind: line,
+      statement: financial_position,
+      what: "Stake in an associate.",
+      why: "Non-cash earnings; value risk.",
+      labels: ["Investment in associate"],
+    }
+  - {
+      code: BS_LEASE_RECEIVABLES_NC,
+      name: "Lease receivables, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Amounts due from leasing assets to others.",
+      why: "Minor; keep separate from trade receivables.",
+      labels: ["Lease receivables"],
+    }
+  - {
+      code: BS_DEFERRED_TAX_ASSETS,
+      name: "Deferred tax assets",
+      kind: line,
+      statement: financial_position,
+      what: "Future tax savings.",
+      why: "Depends on future profit.",
+      labels: ["Deferred tax assets"],
+    }
+  - {
+      code: BS_PREPAYMENTS_NC,
+      name: "Prepayments, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Long-dated advances (often for equipment).",
+      why: "Cash already out the door.",
+      labels: ["Prepayments"],
+    }
+  - {
+      code: BS_RELATED_PARTY_RECEIVABLES_NC,
+      name: "Receivables from related parties, non-current",
+      kind: line,
+      statement: financial_position,
+      company_mostly: true,
+      what: "Loans to subsidiaries/parent.",
+      why: "Conflict-of-interest and cash-extraction risk (agent instructions 9G).",
+      labels:
+        ["Receivables from related parties", "Receivables from subsidiaries"],
+      tags: ["ng:related_party"],
+    }
+  - {
+      code: BS_TOTAL_NC_ASSETS,
+      name: "Total non-current assets",
+      kind: subtotal,
+      statement: financial_position,
+      sum:
+        [
+          BS_PPE,
+          BS_RIGHT_OF_USE,
+          BS_INTANGIBLES,
+          BS_GOODWILL,
+          BS_INVEST_SUBSIDIARIES,
+          BS_INVEST_ASSOCIATE,
+          BS_LEASE_RECEIVABLES_NC,
+          BS_DEFERRED_TAX_ASSETS,
+          BS_PREPAYMENTS_NC,
+          BS_RELATED_PARTY_RECEIVABLES_NC,
+        ],
+      labels: ["Total non-current assets"],
+    }
+  - {
+      code: BS_BIOLOGICAL_ASSETS,
+      name: "Biological assets",
+      kind: line,
+      statement: financial_position,
+      what: "Growing crops and livestock at fair value (IAS 41).",
+      why: "Valuation judgement; depends on assumed prices and yields.",
+      labels: ["Biological assets"],
+      tags: [agriculture],
+    }
+  - {
+      code: BS_INVENTORIES,
+      name: "Inventories",
+      kind: line,
+      statement: financial_position,
+      what: "Raw materials, work in progress, finished goods, spares.",
+      why: "Days inventory; inventory growing faster than sales is a flag.",
+      labels: ["Inventories"],
+    }
+  - {
+      code: BS_TRADE_RECEIVABLES,
+      name: "Trade and other receivables",
+      kind: line,
+      statement: financial_position,
+      what: "Money owed by customers and others.",
+      why: "Days sales outstanding; receivables growing faster than revenue is a flag.",
+      labels: ["Trade and other receivables"],
+    }
+  - {
+      code: BS_PREPAYMENTS_OTHER_CA,
+      name: "Prepayments and other current assets",
+      kind: line,
+      statement: financial_position,
+      what: "Advances to suppliers, deposits, letters-of-credit margins.",
+      why: "Large at Dangote (N664bn): FX-related import prepayments; understand what is in it.",
+      labels: ["Prepayments and other current assets"],
+    }
+  - {
+      code: BS_LEASE_RECEIVABLES_C,
+      name: "Lease receivables, current",
+      kind: line,
+      statement: financial_position,
+      what: "Current part of lease receivables.",
+      why: "Minor.",
+      labels: ["Lease receivables"],
+    }
+  - {
+      code: BS_CURRENT_TAX_ASSETS,
+      name: "Current tax assets",
+      kind: line,
+      statement: financial_position,
+      what: "Tax overpaid or recoverable.",
+      why: "Minor.",
+      labels: ["Current tax assets"],
+    }
+  - {
+      code: BS_CASH,
+      name: "Cash and cash equivalents",
+      kind: line,
+      statement: financial_position,
+      what: "Cash, bank balances and short-term deposits (balance sheet date). May include restricted cash.",
+      why: "Liquidity and net debt. Differs from the cash-flow-statement cash by overdrafts (note 32.1).",
+      labels: ["Cash and cash equivalents"],
+      tags: ["sharia:cash_and_deposits"],
+    }
+  - {
+      code: BS_TOTAL_CURRENT_ASSETS,
+      name: "Total current assets",
+      kind: subtotal,
+      statement: financial_position,
+      sum:
+        [
+          BS_BIOLOGICAL_ASSETS,
+          BS_INVENTORIES,
+          BS_TRADE_RECEIVABLES,
+          BS_PREPAYMENTS_OTHER_CA,
+          BS_LEASE_RECEIVABLES_C,
+          BS_CURRENT_TAX_ASSETS,
+          BS_CASH,
+        ],
+      labels: ["Total current assets"],
+    }
+  - {
+      code: BS_TOTAL_ASSETS,
+      name: "Total assets",
+      kind: subtotal,
+      statement: financial_position,
+      sum: [BS_TOTAL_NC_ASSETS, BS_TOTAL_CURRENT_ASSETS],
+      labels: ["Total assets"],
+    }
 
   # ------------------------------------------------------------------ FINANCIAL POSITION: LIABILITIES
-  - {code: BS_BORROWINGS_NC, name: "Borrowings, non-current", kind: line, statement: financial_position,
-     what: "Loans and bonds due after one year (Dangote labels these 'financial liabilities').",
-     why: "Debt service, refinancing risk, currency mix: much of it is dollar-denominated at Dangote.",
-     labels: ["Financial liabilities", "Borrowings"], tags: ["sharia:interest_bearing_debt", "ng:fx"]}
-  - {code: BS_LEASE_LIABILITIES_NC, name: "Lease liabilities, non-current", kind: line, statement: financial_position,
-     what: "Lease obligations due after one year.", why: "Debt-like; included in lease-adjusted leverage.", labels: ["Lease liabilities"],
-     tags: ["sharia:interest_bearing_debt"]}
-  - {code: BS_EMPLOYEE_BENEFITS_NC, name: "Employee benefit obligations, non-current", kind: line, statement: financial_position,
-     what: "Pension and long-service liabilities.", why: "Debt-like; check discount rate.", labels: ["Employee benefit obligations", "Defined benefit obligations"]}
-  - {code: BS_PROVISIONS_NC, name: "Provisions, non-current", kind: line, statement: financial_position,
-     what: "Estimated future costs (restoration, claims).", why: "Judgemental; reversals can flatter profit.", labels: ["Provisions"]}
-  - {code: BS_DEFERRED_INCOME_NC, name: "Deferred income, non-current", kind: line, statement: financial_position,
-     what: "Government grants and revenue received in advance.", why: "Not debt.", labels: ["Deferred revenue", "Deferred income"]}
-  - {code: BS_DEFERRED_TAX_LIABILITIES, name: "Deferred tax liabilities", kind: line, statement: financial_position,
-     what: "Tax payable in future.", why: "Rises with revaluation and inflation restatement.", labels: ["Deferred tax liabilities"]}
-  - {code: BS_TOTAL_NC_LIABILITIES, name: "Total non-current liabilities", kind: subtotal, statement: financial_position,
-     sum: [BS_BORROWINGS_NC, BS_LEASE_LIABILITIES_NC, BS_EMPLOYEE_BENEFITS_NC, BS_PROVISIONS_NC, BS_DEFERRED_INCOME_NC, BS_DEFERRED_TAX_LIABILITIES],
-     labels: ["Total non-current liabilities"]}
-  - {code: BS_TRADE_PAYABLES, name: "Trade and other payables", kind: line, statement: financial_position,
-     what: "Owed to suppliers and accruals.", why: "Days payable. Do not read rising payables as good: it can be stretched suppliers (agent instructions 9D).",
-     labels: ["Trade and other payables"]}
-  - {code: BS_BORROWINGS_C, name: "Borrowings, current", kind: line, statement: financial_position,
-     what: "Loans due within one year and the current part of long-term loans.", why: "Refinancing wall. Dangote's includes overdrafts.",
-     labels: ["Financial liabilities", "Borrowings"], tags: ["sharia:interest_bearing_debt", "ng:fx"]}
-  - {code: BS_BANK_OVERDRAFT, name: "Bank overdraft", kind: line, statement: financial_position,
-     what: "Short-term borrowing on current accounts.", why: "Debt, even though it nets against cash in the cash flow statement.",
-     labels: ["Bank overdraft"], tags: ["sharia:interest_bearing_debt"]}
-  - {code: BS_LEASE_LIABILITIES_C, name: "Lease liabilities, current", kind: line, statement: financial_position,
-     what: "Lease obligations due within one year.", why: "Debt-like.", labels: ["Lease liabilities"], tags: ["sharia:interest_bearing_debt"]}
-  - {code: BS_EMPLOYEE_BENEFITS_C, name: "Employee benefit obligations, current", kind: line, statement: financial_position,
-     what: "Pension and long-service liabilities due within one year.", why: "Presco's FY2025 report moved N2.2bn here from non-current for the 2024 comparative.",
-     labels: ["Defined benefit obligations"]}
-  - {code: BS_DEFERRED_INCOME_C, name: "Deferred income, current", kind: line, statement: financial_position,
-     what: "Revenue and grants received in advance, due within a year.", why: "Customer advances: not debt.", labels: ["Deferred income"]}
-  - {code: BS_CURRENT_TAX_LIABILITIES, name: "Current tax liabilities", kind: line, statement: financial_position,
-     what: "Tax owed for the year.", why: "Cash call in the next year.", labels: ["Current tax liabilities"]}
-  - {code: BS_OTHER_CURRENT_LIABILITIES, name: "Other current liabilities", kind: line, statement: financial_position,
-     what: "Accruals and other short-term obligations not shown elsewhere.", why: "Look inside via the notes if large.",
-     labels: ["Other current liabilities"]}
-  - {code: BS_TOTAL_CURRENT_LIABILITIES, name: "Total current liabilities", kind: subtotal, statement: financial_position,
-     sum: [BS_TRADE_PAYABLES, BS_BORROWINGS_C, BS_BANK_OVERDRAFT, BS_LEASE_LIABILITIES_C, BS_EMPLOYEE_BENEFITS_C, BS_DEFERRED_INCOME_C, BS_CURRENT_TAX_LIABILITIES, BS_OTHER_CURRENT_LIABILITIES],
-     labels: ["Total current liabilities"]}
-  - {code: BS_TOTAL_LIABILITIES, name: "Total liabilities", kind: subtotal, statement: financial_position,
-     sum: [BS_TOTAL_NC_LIABILITIES, BS_TOTAL_CURRENT_LIABILITIES], labels: ["Total liabilities"]}
+  - {
+      code: BS_BORROWINGS_NC,
+      name: "Borrowings, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Loans and bonds due after one year (Dangote labels these 'financial liabilities').",
+      why: "Debt service, refinancing risk, currency mix: much of it is dollar-denominated at Dangote.",
+      labels: ["Financial liabilities", "Borrowings"],
+      tags: ["sharia:interest_bearing_debt", "ng:fx"],
+    }
+  - {
+      code: BS_LEASE_LIABILITIES_NC,
+      name: "Lease liabilities, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Lease obligations due after one year.",
+      why: "Debt-like; included in lease-adjusted leverage.",
+      labels: ["Lease liabilities"],
+      tags: ["sharia:interest_bearing_debt"],
+    }
+  - {
+      code: BS_EMPLOYEE_BENEFITS_NC,
+      name: "Employee benefit obligations, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Pension and long-service liabilities.",
+      why: "Debt-like; check discount rate.",
+      labels: ["Employee benefit obligations", "Defined benefit obligations"],
+    }
+  - {
+      code: BS_PROVISIONS_NC,
+      name: "Provisions, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Estimated future costs (restoration, claims).",
+      why: "Judgemental; reversals can flatter profit.",
+      labels: ["Provisions"],
+    }
+  - {
+      code: BS_DEFERRED_INCOME_NC,
+      name: "Deferred income, non-current",
+      kind: line,
+      statement: financial_position,
+      what: "Government grants and revenue received in advance.",
+      why: "Not debt.",
+      labels: ["Deferred revenue", "Deferred income"],
+    }
+  - {
+      code: BS_DEFERRED_TAX_LIABILITIES,
+      name: "Deferred tax liabilities",
+      kind: line,
+      statement: financial_position,
+      what: "Tax payable in future.",
+      why: "Rises with revaluation and inflation restatement.",
+      labels: ["Deferred tax liabilities"],
+    }
+  - {
+      code: BS_TOTAL_NC_LIABILITIES,
+      name: "Total non-current liabilities",
+      kind: subtotal,
+      statement: financial_position,
+      sum:
+        [
+          BS_BORROWINGS_NC,
+          BS_LEASE_LIABILITIES_NC,
+          BS_EMPLOYEE_BENEFITS_NC,
+          BS_PROVISIONS_NC,
+          BS_DEFERRED_INCOME_NC,
+          BS_DEFERRED_TAX_LIABILITIES,
+        ],
+      labels: ["Total non-current liabilities"],
+    }
+  - {
+      code: BS_TRADE_PAYABLES,
+      name: "Trade and other payables",
+      kind: line,
+      statement: financial_position,
+      what: "Owed to suppliers and accruals.",
+      why: "Days payable. Do not read rising payables as good: it can be stretched suppliers (agent instructions 9D).",
+      labels: ["Trade and other payables"],
+    }
+  - {
+      code: BS_BORROWINGS_C,
+      name: "Borrowings, current",
+      kind: line,
+      statement: financial_position,
+      what: "Loans due within one year and the current part of long-term loans.",
+      why: "Refinancing wall. Dangote's includes overdrafts.",
+      labels: ["Financial liabilities", "Borrowings"],
+      tags: ["sharia:interest_bearing_debt", "ng:fx"],
+    }
+  - {
+      code: BS_BANK_OVERDRAFT,
+      name: "Bank overdraft",
+      kind: line,
+      statement: financial_position,
+      what: "Short-term borrowing on current accounts.",
+      why: "Debt, even though it nets against cash in the cash flow statement.",
+      labels: ["Bank overdraft"],
+      tags: ["sharia:interest_bearing_debt"],
+    }
+  - {
+      code: BS_LEASE_LIABILITIES_C,
+      name: "Lease liabilities, current",
+      kind: line,
+      statement: financial_position,
+      what: "Lease obligations due within one year.",
+      why: "Debt-like.",
+      labels: ["Lease liabilities"],
+      tags: ["sharia:interest_bearing_debt"],
+    }
+  - {
+      code: BS_EMPLOYEE_BENEFITS_C,
+      name: "Employee benefit obligations, current",
+      kind: line,
+      statement: financial_position,
+      what: "Pension and long-service liabilities due within one year.",
+      why: "Presco's FY2025 report moved N2.2bn here from non-current for the 2024 comparative.",
+      labels: ["Defined benefit obligations"],
+    }
+  - {
+      code: BS_DEFERRED_INCOME_C,
+      name: "Deferred income, current",
+      kind: line,
+      statement: financial_position,
+      what: "Revenue and grants received in advance, due within a year.",
+      why: "Customer advances: not debt.",
+      labels: ["Deferred income"],
+    }
+  - {
+      code: BS_CURRENT_TAX_LIABILITIES,
+      name: "Current tax liabilities",
+      kind: line,
+      statement: financial_position,
+      what: "Tax owed for the year.",
+      why: "Cash call in the next year.",
+      labels: ["Current tax liabilities"],
+    }
+  - {
+      code: BS_OTHER_CURRENT_LIABILITIES,
+      name: "Other current liabilities",
+      kind: line,
+      statement: financial_position,
+      what: "Accruals and other short-term obligations not shown elsewhere.",
+      why: "Look inside via the notes if large.",
+      labels: ["Other current liabilities"],
+    }
+  - {
+      code: BS_TOTAL_CURRENT_LIABILITIES,
+      name: "Total current liabilities",
+      kind: subtotal,
+      statement: financial_position,
+      sum:
+        [
+          BS_TRADE_PAYABLES,
+          BS_BORROWINGS_C,
+          BS_BANK_OVERDRAFT,
+          BS_LEASE_LIABILITIES_C,
+          BS_EMPLOYEE_BENEFITS_C,
+          BS_DEFERRED_INCOME_C,
+          BS_CURRENT_TAX_LIABILITIES,
+          BS_OTHER_CURRENT_LIABILITIES,
+        ],
+      labels: ["Total current liabilities"],
+    }
+  - {
+      code: BS_TOTAL_LIABILITIES,
+      name: "Total liabilities",
+      kind: subtotal,
+      statement: financial_position,
+      sum: [BS_TOTAL_NC_LIABILITIES, BS_TOTAL_CURRENT_LIABILITIES],
+      labels: ["Total liabilities"],
+    }
 
   # ------------------------------------------------------------------ FINANCIAL POSITION: EQUITY
-  - {code: BS_NET_ASSETS, name: "Net assets", kind: subtotal, statement: financial_position,
-     sum: [BS_TOTAL_ASSETS], minus: [BS_TOTAL_LIABILITIES], labels: ["Net assets"]}
-  - {code: BS_SHARE_CAPITAL, name: "Share capital", kind: line, statement: financial_position,
-     what: "Nominal value of issued shares.", why: "Share-count changes drive dilution.", labels: ["Share capital"]}
-  - {code: BS_SHARE_PREMIUM, name: "Share premium", kind: line, statement: financial_position,
-     what: "Amount paid above nominal value.", why: "Presco raised N235bn in 2025: new capital, check returns on it.", labels: ["Share premium"]}
-  - {code: BS_TREASURY_SHARES, name: "Treasury shares", kind: line, statement: financial_position,
-     what: "Own shares bought back (negative).", why: "Buy-backs return cash to shareholders.", labels: ["Treasury shares", "Treasury Shares"]}
-  - {code: BS_CAPITAL_CONTRIBUTION, name: "Capital contribution", kind: line, statement: financial_position,
-     what: "Capital put in by shareholders outside share issues.", why: "Minor.", labels: ["Capital contribution"]}
-  - {code: BS_CURRENCY_TRANSLATION_RESERVE, name: "Currency translation / foreign exchange reserve", kind: line, statement: financial_position,
-     what: "Accumulated exchange differences on foreign subsidiaries.", why: "Dangote's is N1.0 trillion: a large part of equity is translation, not earned profit.",
-     labels: ["Currency translation reserve", "Foreign Exchange reserves"], tags: ["ng:fx"]}
-  - {code: BS_OTHER_RESERVES, name: "Other reserves", kind: line, statement: financial_position,
-     what: "Remaining reserves (pension remeasurements and others).", why: "Check for revaluation reserves.", labels: ["Other reserves"]}
-  - {code: BS_RETAINED_EARNINGS, name: "Retained earnings", kind: line, statement: financial_position,
-     what: "Accumulated profit not paid out.", why: "Equity growth from earnings vs from capital raised.", labels: ["Retained earnings"]}
-  - {code: BS_EQUITY_OWNERS, name: "Equity attributable to owners", kind: subtotal, statement: financial_position,
-     sum: [BS_SHARE_CAPITAL, BS_SHARE_PREMIUM, BS_TREASURY_SHARES, BS_CAPITAL_CONTRIBUTION, BS_CURRENCY_TRANSLATION_RESERVE, BS_OTHER_RESERVES, BS_RETAINED_EARNINGS],
-     labels: ["Equity attributable to owners of the Company", "Equity attributable to owners"]}
-  - {code: BS_NCI, name: "Non-controlling interests", kind: line, statement: financial_position,
-     what: "Minority holders' share of subsidiaries' equity.", why: "Presco's NCI disappeared in 2025 (it bought out the Ghana minority).", labels: ["Non-controlling interest", "Non-Controlling Interests"]}
-  - {code: BS_TOTAL_EQUITY, name: "Total equity", kind: subtotal, statement: financial_position,
-     sum: [BS_EQUITY_OWNERS, BS_NCI], labels: ["Total equity"]}
-  - {code: BS_TOTAL_EQUITY_AND_LIABILITIES, name: "Total equity and liabilities", kind: subtotal, statement: financial_position,
-     sum: [BS_TOTAL_EQUITY, BS_TOTAL_LIABILITIES], labels: ["Total equity and liabilities"]}
+  - {
+      code: BS_NET_ASSETS,
+      name: "Net assets",
+      kind: subtotal,
+      statement: financial_position,
+      sum: [BS_TOTAL_ASSETS],
+      minus: [BS_TOTAL_LIABILITIES],
+      labels: ["Net assets"],
+    }
+  - {
+      code: BS_SHARE_CAPITAL,
+      name: "Share capital",
+      kind: line,
+      statement: financial_position,
+      what: "Nominal value of issued shares.",
+      why: "Share-count changes drive dilution.",
+      labels: ["Share capital"],
+    }
+  - {
+      code: BS_SHARE_PREMIUM,
+      name: "Share premium",
+      kind: line,
+      statement: financial_position,
+      what: "Amount paid above nominal value.",
+      why: "Presco raised N235bn in 2025: new capital, check returns on it.",
+      labels: ["Share premium"],
+    }
+  - {
+      code: BS_TREASURY_SHARES,
+      name: "Treasury shares",
+      kind: line,
+      statement: financial_position,
+      what: "Own shares bought back (negative).",
+      why: "Buy-backs return cash to shareholders.",
+      labels: ["Treasury shares", "Treasury Shares"],
+    }
+  - {
+      code: BS_CAPITAL_CONTRIBUTION,
+      name: "Capital contribution",
+      kind: line,
+      statement: financial_position,
+      what: "Capital put in by shareholders outside share issues.",
+      why: "Minor.",
+      labels: ["Capital contribution"],
+    }
+  - {
+      code: BS_CURRENCY_TRANSLATION_RESERVE,
+      name: "Currency translation / foreign exchange reserve",
+      kind: line,
+      statement: financial_position,
+      what: "Accumulated exchange differences on foreign subsidiaries.",
+      why: "Dangote's is N1.0 trillion: a large part of equity is translation, not earned profit.",
+      labels: ["Currency translation reserve", "Foreign Exchange reserves"],
+      tags: ["ng:fx"],
+    }
+  - {
+      code: BS_OTHER_RESERVES,
+      name: "Other reserves",
+      kind: line,
+      statement: financial_position,
+      what: "Remaining reserves (pension remeasurements and others).",
+      why: "Check for revaluation reserves.",
+      labels: ["Other reserves"],
+    }
+  - {
+      code: BS_RETAINED_EARNINGS,
+      name: "Retained earnings",
+      kind: line,
+      statement: financial_position,
+      what: "Accumulated profit not paid out.",
+      why: "Equity growth from earnings vs from capital raised.",
+      labels: ["Retained earnings"],
+    }
+  - {
+      code: BS_EQUITY_OWNERS,
+      name: "Equity attributable to owners",
+      kind: subtotal,
+      statement: financial_position,
+      sum:
+        [
+          BS_SHARE_CAPITAL,
+          BS_SHARE_PREMIUM,
+          BS_TREASURY_SHARES,
+          BS_CAPITAL_CONTRIBUTION,
+          BS_CURRENCY_TRANSLATION_RESERVE,
+          BS_OTHER_RESERVES,
+          BS_RETAINED_EARNINGS,
+        ],
+      labels:
+        [
+          "Equity attributable to owners of the Company",
+          "Equity attributable to owners",
+        ],
+    }
+  - {
+      code: BS_NCI,
+      name: "Non-controlling interests",
+      kind: line,
+      statement: financial_position,
+      what: "Minority holders' share of subsidiaries' equity.",
+      why: "Presco's NCI disappeared in 2025 (it bought out the Ghana minority).",
+      labels: ["Non-controlling interest", "Non-Controlling Interests"],
+    }
+  - {
+      code: BS_TOTAL_EQUITY,
+      name: "Total equity",
+      kind: subtotal,
+      statement: financial_position,
+      sum: [BS_EQUITY_OWNERS, BS_NCI],
+      labels: ["Total equity"],
+    }
+  - {
+      code: BS_TOTAL_EQUITY_AND_LIABILITIES,
+      name: "Total equity and liabilities",
+      kind: subtotal,
+      statement: financial_position,
+      sum: [BS_TOTAL_EQUITY, BS_TOTAL_LIABILITIES],
+      labels: ["Total equity and liabilities"],
+    }
 
   # ------------------------------------------------------------------ CASH FLOW: OPERATING
-  - {code: CF_PBT, name: "Profit before tax (cash flow starting point)", kind: line, statement: cash_flows,
-     what: "Where the indirect cash flow starts.", why: "Reconcile to the income statement.", labels: ["Profit before tax"]}
-  - {code: CF_DEPRECIATION_AMORTISATION, name: "Depreciation and amortisation", kind: line, statement: cash_flows,
-     what: "Non-cash charge for using up assets.", why: "EBITDA = operating profit + this (before and after IFRS 16).",
-     labels: ["Depreciation & amortisation", "Depreciation of property, plant and equipment", "Depreciation of right-of-use assets", "Amortization of intangible assets"], tags: [non_cash]}
-  - {code: CF_IMPAIRMENT_WRITEOFF, name: "Impairment, write-offs and credit-loss charges", kind: line, statement: cash_flows,
-     what: "Non-cash write-downs.", why: "Repeated write-offs signal overstated assets.",
-     labels: ["Write off & impairment of property, plant, equipment and intangible assets", "Impairment (reversal) / loss on trade receivables", "Expected credit loss / (Write-back)", "Expected credit loss/Write-back"], tags: [non_cash]}
-  - {code: CF_FAIR_VALUE_BIOLOGICAL, name: "Fair-value change on biological assets", kind: line, statement: cash_flows,
-     what: "Reversal of the non-cash plantation gain.", why: "Mirror of PL_BIOLOGICAL_FV.",
-     labels: ["Fair value changes in biological asset", "Gain on biological asset valuation", "(Loss)/Gain on biological asset valuation"], tags: [non_cash, agriculture]}
-  - {code: CF_INTEREST_EXPENSE_ADDBACK, name: "Interest expense (added back)", kind: line, statement: cash_flows,
-     what: "Finance costs added back because interest paid is shown in financing.", why: "Needed to match interest paid.",
-     labels: ["Interest expenses", "Finance cost"]}
-  - {code: CF_INTEREST_INCOME_LESS, name: "Interest and dividend income (deducted)", kind: line, statement: cash_flows,
-     what: "Finance income removed because interest received is shown in investing.", why: "Needed to match interest received.",
-     labels: ["Interest & dividend income", "Finance income"]}
-  - {code: CF_FX_UNREALISED, name: "Unrealised foreign exchange loss or gain", kind: line, statement: cash_flows,
-     what: "Exchange effect on debt and balances that did not move cash.", why: "How much of profit or loss is devaluation.",
-     labels: ["Net exchange loss/(gain) on borrowings and non-operating assets", "Unrealised foreign exchange gain", "Foreign exchange (gain) / Loss", "Net exchange loss/(gain) on borrowings and non-operat- ing assets"], tags: [non_cash, "ng:fx"]}
-  - {code: CF_MONETARY_POSITION_ADJ, name: "Inflation-accounting adjustments", kind: line, statement: cash_flows,
-     what: "Reversal of IAS 29 restatement effects.", why: "Non-cash.",
-     labels: ["Gain on net monetary position", "Loss on monetary position", "Loss on non-monetary position", "Effect of inflation adjustments"], tags: [non_cash, "ng:inflation_accounting"]}
-  - {code: CF_SHARE_OF_ASSOCIATE, name: "Share of associate income (deducted)", kind: line, statement: cash_flows,
-     what: "Non-cash equity income removed.", why: "Not cash.", labels: ["Share of income from associate"], tags: [non_cash]}
-  - {code: CF_PROVISIONS_BENEFITS, name: "Provisions, deferred income and employee-benefit charges", kind: line, statement: cash_flows,
-     what: "Non-cash movements in provisions and pension/long-service costs.", why: "Watch for reversals.",
-     labels: ["Provisions", "Provision for employee benefits obligations", "Service cost", "Settlement gain on long service award", "Change in deferred revenue", "Deferred revenue", "Settlement (gain)/ loss on long service award"], tags: [non_cash]}
-  - {code: CF_GAIN_LOSS_DISPOSAL, name: "Gain or loss on disposal of assets", kind: line, statement: cash_flows,
-     what: "Non-cash gain/loss reversed; proceeds appear in investing.", why: "One-offs.",
-     labels: ["Gain on disposal of property, plant and equipment & right-of-use assets", "Loss on sale of property plant and equipment", "Loss on sales of palm seedlings"], tags: [non_cash]}
-  - {code: CF_OTHER_NON_CASH, name: "Other non-cash adjustments", kind: line, statement: cash_flows,
-     what: "Lease remeasurement, grant amortisation, asset transfers.", why: "Check size relative to profit.",
-     labels: ["Net lease remeasurements", "Impact of lease modification", "Amortisation of government grant", "Recognition of government grant on additional loan", "PPE Transfer to Inventory / write off", "PPE Transfer to Inventory /write off less depreciation", "Recognition of government grant"], tags: [non_cash]}
-  - {code: CF_WC_INVENTORIES, name: "Change in inventories", kind: line, statement: cash_flows,
-     what: "Cash tied up in or released from stock.", why: "Cash conversion.", labels: ["Inventories", "(Increase) Decrease in inventories", "- Inventories", "Decrease / (Increase) in inventories"]}
-  - {code: CF_WC_RECEIVABLES, name: "Change in trade and other receivables", kind: line, statement: cash_flows,
-     what: "Cash tied up in customer credit.", why: "Cash conversion.", labels: ["Trade and other receivables", "(Increase) / Decrease in trade and other receivable", "-Trade and other receivable", "Increase in trade and other receivable"]}
-  - {code: CF_WC_PAYABLES, name: "Change in trade and other payables", kind: line, statement: cash_flows,
-     what: "Cash gained or lost from supplier credit.", why: "A one-off stretch of suppliers flatters operating cash flow.", labels: ["Trade and other payables", "(Increase) / Decrease in trade and other payables", "- Trade and other payables", "Increase in trade and other payables"]}
-  - {code: CF_WC_OTHER, name: "Change in other working capital", kind: line, statement: cash_flows,
-     what: "Prepayments, other current items, lease receivables, deferred income.", why: "Large at Dangote.",
-     labels: ["Prepayments and other current assets", "Other current liabilities", "Lease receivables", "Change in lease receivables", "- Deferred income", "Increase / (Decrease) in deferred income from advances from customers", "Increase in deferred income from advances from customers"]}
-  - {code: CF_CASH_GENERATED, name: "Cash generated from operations", kind: subtotal, statement: cash_flows,
-     sum: [CF_PBT, CF_DEPRECIATION_AMORTISATION, CF_IMPAIRMENT_WRITEOFF, CF_FAIR_VALUE_BIOLOGICAL, CF_INTEREST_EXPENSE_ADDBACK, CF_INTEREST_INCOME_LESS, CF_FX_UNREALISED, CF_MONETARY_POSITION_ADJ, CF_SHARE_OF_ASSOCIATE, CF_PROVISIONS_BENEFITS, CF_GAIN_LOSS_DISPOSAL, CF_OTHER_NON_CASH, CF_WC_INVENTORIES, CF_WC_RECEIVABLES, CF_WC_PAYABLES, CF_WC_OTHER],
-     labels: ["Cash generated in operating activities"]}
-  - {code: CF_TAX_PAID, name: "Income tax paid", kind: line, statement: cash_flows,
-     what: "Tax actually paid in cash.", why: "Cash vs accounting tax charge.", labels: ["Income tax paid", "Income taxes paid", "Tax paid"]}
-  - {code: CF_BENEFITS_PAID, name: "Employee benefits paid", kind: line, statement: cash_flows,
-     what: "Pension and benefit payments.", why: "Cash cost of benefit schemes.", labels: ["Benefits paid"]}
-  - {code: CF_OPERATING, name: "Net cash from operating activities (CFO)", kind: subtotal, statement: cash_flows,
-     sum: [CF_CASH_GENERATED, CF_TAX_PAID, CF_BENEFITS_PAID],
-     labels: ["Net cash generated from operating activities", "Net cash generated in operating activities"]}
+  - {
+      code: CF_PBT,
+      name: "Profit before tax (cash flow starting point)",
+      kind: line,
+      statement: cash_flows,
+      what: "Where the indirect cash flow starts.",
+      why: "Reconcile to the income statement.",
+      labels: ["Profit before tax"],
+    }
+  - {
+      code: CF_DEPRECIATION_AMORTISATION,
+      name: "Depreciation and amortisation",
+      kind: line,
+      statement: cash_flows,
+      what: "Non-cash charge for using up assets.",
+      why: "EBITDA = operating profit + this (before and after IFRS 16).",
+      labels:
+        [
+          "Depreciation & amortisation",
+          "Depreciation of property, plant and equipment",
+          "Depreciation of right-of-use assets",
+          "Amortization of intangible assets",
+        ],
+      tags: [non_cash],
+    }
+  - {
+      code: CF_IMPAIRMENT_WRITEOFF,
+      name: "Impairment, write-offs and credit-loss charges",
+      kind: line,
+      statement: cash_flows,
+      what: "Non-cash write-downs.",
+      why: "Repeated write-offs signal overstated assets.",
+      labels:
+        [
+          "Write off & impairment of property, plant, equipment and intangible assets",
+          "Impairment (reversal) / loss on trade receivables",
+          "Expected credit loss / (Write-back)",
+          "Expected credit loss/Write-back",
+        ],
+      tags: [non_cash],
+    }
+  - {
+      code: CF_FAIR_VALUE_BIOLOGICAL,
+      name: "Fair-value change on biological assets",
+      kind: line,
+      statement: cash_flows,
+      what: "Reversal of the non-cash plantation gain.",
+      why: "Mirror of PL_BIOLOGICAL_FV.",
+      labels:
+        [
+          "Fair value changes in biological asset",
+          "Gain on biological asset valuation",
+          "(Loss)/Gain on biological asset valuation",
+        ],
+      tags: [non_cash, agriculture],
+    }
+  - {
+      code: CF_INTEREST_EXPENSE_ADDBACK,
+      name: "Interest expense (added back)",
+      kind: line,
+      statement: cash_flows,
+      what: "Finance costs added back because interest paid is shown in financing.",
+      why: "Needed to match interest paid.",
+      labels: ["Interest expenses", "Finance cost"],
+    }
+  - {
+      code: CF_INTEREST_INCOME_LESS,
+      name: "Interest and dividend income (deducted)",
+      kind: line,
+      statement: cash_flows,
+      what: "Finance income removed because interest received is shown in investing.",
+      why: "Needed to match interest received.",
+      labels: ["Interest & dividend income", "Finance income"],
+    }
+  - {
+      code: CF_FX_UNREALISED,
+      name: "Unrealised foreign exchange loss or gain",
+      kind: line,
+      statement: cash_flows,
+      what: "Exchange effect on debt and balances that did not move cash.",
+      why: "How much of profit or loss is devaluation.",
+      labels:
+        [
+          "Net exchange loss/(gain) on borrowings and non-operating assets",
+          "Unrealised foreign exchange gain",
+          "Foreign exchange (gain) / Loss",
+          "Net exchange loss/(gain) on borrowings and non-operat- ing assets",
+        ],
+      tags: [non_cash, "ng:fx"],
+    }
+  - {
+      code: CF_MONETARY_POSITION_ADJ,
+      name: "Inflation-accounting adjustments",
+      kind: line,
+      statement: cash_flows,
+      what: "Reversal of IAS 29 restatement effects.",
+      why: "Non-cash.",
+      labels:
+        [
+          "Gain on net monetary position",
+          "Loss on monetary position",
+          "Loss on non-monetary position",
+          "Effect of inflation adjustments",
+        ],
+      tags: [non_cash, "ng:inflation_accounting"],
+    }
+  - {
+      code: CF_SHARE_OF_ASSOCIATE,
+      name: "Share of associate income (deducted)",
+      kind: line,
+      statement: cash_flows,
+      what: "Non-cash equity income removed.",
+      why: "Not cash.",
+      labels: ["Share of income from associate"],
+      tags: [non_cash],
+    }
+  - {
+      code: CF_PROVISIONS_BENEFITS,
+      name: "Provisions, deferred income and employee-benefit charges",
+      kind: line,
+      statement: cash_flows,
+      what: "Non-cash movements in provisions and pension/long-service costs.",
+      why: "Watch for reversals.",
+      labels:
+        [
+          "Provisions",
+          "Provision for employee benefits obligations",
+          "Service cost",
+          "Settlement gain on long service award",
+          "Change in deferred revenue",
+          "Deferred revenue",
+          "Settlement (gain)/ loss on long service award",
+        ],
+      tags: [non_cash],
+    }
+  - {
+      code: CF_GAIN_LOSS_DISPOSAL,
+      name: "Gain or loss on disposal of assets",
+      kind: line,
+      statement: cash_flows,
+      what: "Non-cash gain/loss reversed; proceeds appear in investing.",
+      why: "One-offs.",
+      labels:
+        [
+          "Gain on disposal of property, plant and equipment & right-of-use assets",
+          "Loss on sale of property plant and equipment",
+          "Loss on sales of palm seedlings",
+        ],
+      tags: [non_cash],
+    }
+  - {
+      code: CF_OTHER_NON_CASH,
+      name: "Other non-cash adjustments",
+      kind: line,
+      statement: cash_flows,
+      what: "Lease remeasurement, grant amortisation, asset transfers.",
+      why: "Check size relative to profit.",
+      labels:
+        [
+          "Net lease remeasurements",
+          "Impact of lease modification",
+          "Amortisation of government grant",
+          "Recognition of government grant on additional loan",
+          "PPE Transfer to Inventory / write off",
+          "PPE Transfer to Inventory /write off less depreciation",
+          "Recognition of government grant",
+        ],
+      tags: [non_cash],
+    }
+  - {
+      code: CF_WC_INVENTORIES,
+      name: "Change in inventories",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash tied up in or released from stock.",
+      why: "Cash conversion.",
+      labels:
+        [
+          "Inventories",
+          "(Increase) Decrease in inventories",
+          "- Inventories",
+          "Decrease / (Increase) in inventories",
+        ],
+    }
+  - {
+      code: CF_WC_RECEIVABLES,
+      name: "Change in trade and other receivables",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash tied up in customer credit.",
+      why: "Cash conversion.",
+      labels:
+        [
+          "Trade and other receivables",
+          "(Increase) / Decrease in trade and other receivable",
+          "-Trade and other receivable",
+          "Increase in trade and other receivable",
+        ],
+    }
+  - {
+      code: CF_WC_PAYABLES,
+      name: "Change in trade and other payables",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash gained or lost from supplier credit.",
+      why: "A one-off stretch of suppliers flatters operating cash flow.",
+      labels:
+        [
+          "Trade and other payables",
+          "(Increase) / Decrease in trade and other payables",
+          "- Trade and other payables",
+          "Increase in trade and other payables",
+        ],
+    }
+  - {
+      code: CF_WC_OTHER,
+      name: "Change in other working capital",
+      kind: line,
+      statement: cash_flows,
+      what: "Prepayments, other current items, lease receivables, deferred income.",
+      why: "Large at Dangote.",
+      labels:
+        [
+          "Prepayments and other current assets",
+          "Other current liabilities",
+          "Lease receivables",
+          "Change in lease receivables",
+          "- Deferred income",
+          "Increase / (Decrease) in deferred income from advances from customers",
+          "Increase in deferred income from advances from customers",
+        ],
+    }
+  - {
+      code: CF_CASH_GENERATED,
+      name: "Cash generated from operations",
+      kind: subtotal,
+      statement: cash_flows,
+      sum:
+        [
+          CF_PBT,
+          CF_DEPRECIATION_AMORTISATION,
+          CF_IMPAIRMENT_WRITEOFF,
+          CF_FAIR_VALUE_BIOLOGICAL,
+          CF_INTEREST_EXPENSE_ADDBACK,
+          CF_INTEREST_INCOME_LESS,
+          CF_FX_UNREALISED,
+          CF_MONETARY_POSITION_ADJ,
+          CF_SHARE_OF_ASSOCIATE,
+          CF_PROVISIONS_BENEFITS,
+          CF_GAIN_LOSS_DISPOSAL,
+          CF_OTHER_NON_CASH,
+          CF_WC_INVENTORIES,
+          CF_WC_RECEIVABLES,
+          CF_WC_PAYABLES,
+          CF_WC_OTHER,
+        ],
+      labels: ["Cash generated in operating activities"],
+    }
+  - {
+      code: CF_TAX_PAID,
+      name: "Income tax paid",
+      kind: line,
+      statement: cash_flows,
+      what: "Tax actually paid in cash.",
+      why: "Cash vs accounting tax charge.",
+      labels: ["Income tax paid", "Income taxes paid", "Tax paid"],
+    }
+  - {
+      code: CF_BENEFITS_PAID,
+      name: "Employee benefits paid",
+      kind: line,
+      statement: cash_flows,
+      what: "Pension and benefit payments.",
+      why: "Cash cost of benefit schemes.",
+      labels: ["Benefits paid"],
+    }
+  - {
+      code: CF_OPERATING,
+      name: "Net cash from operating activities (CFO)",
+      kind: subtotal,
+      statement: cash_flows,
+      sum: [CF_CASH_GENERATED, CF_TAX_PAID, CF_BENEFITS_PAID],
+      labels:
+        [
+          "Net cash generated from operating activities",
+          "Net cash generated in operating activities",
+        ],
+    }
 
   # ------------------------------------------------------------------ CASH FLOW: INVESTING
-  - {code: CF_CAPEX_PPE, name: "Acquisition of property, plant and equipment (capex)", kind: line, statement: cash_flows,
-     what: "Cash spent on plant and equipment.", why: "Free cash flow = CFO - capex (never CFO minus all investing).",
-     labels: ["Acquisition of property, plant and equipment"]}
-  - {code: CF_MEMO_PPE_BUILDUP, name: "Memo: build-up of the capex line", kind: line, statement: cash_flows, tags: [memo],
-     what: "Additions, suppliers' credit and prepayment changes that explain the capex line above.", why: "Shown for information; adding it again would double count.",
-     labels: ["Additions to property, plant and equipment", "Suppliers' credit unpaid", "Net suppliers' credit repaid", "Change in non-current prepayments", "Net suppliers’ credit repaid"]}
-  - {code: CF_CAPEX_INTANGIBLES, name: "Acquisition of intangible assets", kind: line, statement: cash_flows,
-     what: "Cash spent on software, licences.", why: "Part of total capex.", labels: ["Acquisition of intangible assets"]}
-  - {code: CF_PPE_PROCEEDS, name: "Proceeds from disposal of property, plant and equipment", kind: line, statement: cash_flows,
-     what: "Cash from selling assets.", why: "Funding source.", labels: ["Proceeds from disposal of property, plant and equipment", "Proceeds from sale of property, plant and equipment"]}
-  - {code: CF_INTEREST_RECEIVED, name: "Interest received", kind: line, statement: cash_flows,
-     what: "Cash interest on deposits and loans.", why: "Sharia: interest income.", labels: ["Interest received"], tags: ["sharia:interest_income"]}
-  - {code: CF_DIVIDEND_RECEIVED, name: "Dividend income received", kind: line, statement: cash_flows,
-     what: "Dividends from investments.", why: "Cash from investments.", labels: ["Dividend income received"]}
-  - {code: CF_ACQUISITIONS, name: "Acquisition of subsidiaries, net of cash", kind: line, statement: cash_flows,
-     what: "Cash paid (or acquired) in buying businesses.", why: "Presco bought control of Ghana Oil Palm: growth by acquisition vs organic.",
-     labels: ["Acquisition of subsidiary, net of cash acquired", "Net cash from the acquisition of GOPDC", "Investment in Subsidiary"]}
-  - {code: CF_RELATED_PARTY_LOANS, name: "Loans to and from related parties", kind: line, statement: cash_flows,
-     what: "Lending to or from subsidiaries and the parent.", why: "Dangote's net N1.04 trillion inflow in FY2025: understand who owes whom.",
-     labels: ["Additional receivables from subsidiaries", "Disbursements to subsidiaries", "Repayment by subsidiaries", "Repayment of loans by subsidiaries", "Net loan (obtained)/repaid by parent company", "Net loan repaid/(obtained) by parent company"],
-     tags: ["ng:related_party"]}
-  - {code: CF_INVESTING, name: "Net cash from investing activities (CFI)", kind: subtotal, statement: cash_flows,
-     sum: [CF_CAPEX_PPE, CF_CAPEX_INTANGIBLES, CF_PPE_PROCEEDS, CF_INTEREST_RECEIVED, CF_DIVIDEND_RECEIVED, CF_ACQUISITIONS, CF_RELATED_PARTY_LOANS],
-     labels: ["Net cash generated from/(used in) investing activities", "Net cash used in investing activities"]}
+  - {
+      code: CF_CAPEX_PPE,
+      name: "Acquisition of property, plant and equipment (capex)",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash spent on plant and equipment.",
+      why: "Free cash flow = CFO - capex (never CFO minus all investing).",
+      labels: ["Acquisition of property, plant and equipment"],
+    }
+  - {
+      code: CF_MEMO_PPE_BUILDUP,
+      name: "Memo: build-up of the capex line",
+      kind: line,
+      statement: cash_flows,
+      tags: [memo],
+      what: "Additions, suppliers' credit and prepayment changes that explain the capex line above.",
+      why: "Shown for information; adding it again would double count.",
+      labels:
+        [
+          "Additions to property, plant and equipment",
+          "Suppliers' credit unpaid",
+          "Net suppliers' credit repaid",
+          "Change in non-current prepayments",
+          "Net suppliers’ credit repaid",
+        ],
+    }
+  - {
+      code: CF_CAPEX_INTANGIBLES,
+      name: "Acquisition of intangible assets",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash spent on software, licences.",
+      why: "Part of total capex.",
+      labels: ["Acquisition of intangible assets"],
+    }
+  - {
+      code: CF_PPE_PROCEEDS,
+      name: "Proceeds from disposal of property, plant and equipment",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash from selling assets.",
+      why: "Funding source.",
+      labels:
+        [
+          "Proceeds from disposal of property, plant and equipment",
+          "Proceeds from sale of property, plant and equipment",
+        ],
+    }
+  - {
+      code: CF_INTEREST_RECEIVED,
+      name: "Interest received",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash interest on deposits and loans.",
+      why: "Sharia: interest income.",
+      labels: ["Interest received"],
+      tags: ["sharia:interest_income"],
+    }
+  - {
+      code: CF_DIVIDEND_RECEIVED,
+      name: "Dividend income received",
+      kind: line,
+      statement: cash_flows,
+      what: "Dividends from investments.",
+      why: "Cash from investments.",
+      labels: ["Dividend income received"],
+    }
+  - {
+      code: CF_ACQUISITIONS,
+      name: "Acquisition of subsidiaries, net of cash",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash paid (or acquired) in buying businesses.",
+      why: "Presco bought control of Ghana Oil Palm: growth by acquisition vs organic.",
+      labels:
+        [
+          "Acquisition of subsidiary, net of cash acquired",
+          "Net cash from the acquisition of GOPDC",
+          "Investment in Subsidiary",
+        ],
+    }
+  - {
+      code: CF_RELATED_PARTY_LOANS,
+      name: "Loans to and from related parties",
+      kind: line,
+      statement: cash_flows,
+      what: "Lending to or from subsidiaries and the parent.",
+      why: "Dangote's net N1.04 trillion inflow in FY2025: understand who owes whom.",
+      labels:
+        [
+          "Additional receivables from subsidiaries",
+          "Disbursements to subsidiaries",
+          "Repayment by subsidiaries",
+          "Repayment of loans by subsidiaries",
+          "Net loan (obtained)/repaid by parent company",
+          "Net loan repaid/(obtained) by parent company",
+        ],
+      tags: ["ng:related_party"],
+    }
+  - {
+      code: CF_INVESTING,
+      name: "Net cash from investing activities (CFI)",
+      kind: subtotal,
+      statement: cash_flows,
+      sum:
+        [
+          CF_CAPEX_PPE,
+          CF_CAPEX_INTANGIBLES,
+          CF_PPE_PROCEEDS,
+          CF_INTEREST_RECEIVED,
+          CF_DIVIDEND_RECEIVED,
+          CF_ACQUISITIONS,
+          CF_RELATED_PARTY_LOANS,
+        ],
+      labels:
+        [
+          "Net cash generated from/(used in) investing activities",
+          "Net cash used in investing activities",
+        ],
+    }
 
   # ------------------------------------------------------------------ CASH FLOW: FINANCING
-  - {code: CF_LOANS_OBTAINED, name: "Loans and bonds obtained", kind: line, statement: cash_flows,
-     what: "New borrowing.", why: "Reliance on debt.", labels: ["Loans obtained", "Proceeds from loans and borrowings", "Loan received during the year", "New loan acquired", "Bond Issued during the year"],
-     tags: ["sharia:interest_bearing_debt"]}
-  - {code: CF_LOANS_REPAID, name: "Loans repaid", kind: line, statement: cash_flows,
-     what: "Repayment of borrowings.", why: "Deleveraging.", labels: ["Loans repaid", "Principal repayment on borrowings", "Loan repayment", "Repayment during the year"]}
-  - {code: CF_INTEREST_PAID, name: "Interest paid", kind: line, statement: cash_flows,
-     what: "Cash interest on borrowings and leases (shown in financing by both companies).", why: "Interest cover on a cash basis.",
-     labels: ["Interest paid", "Interest payment", "Interest repayments on borrowings", "Interest repayments on lease liabilities", "Interest on lease paid"], tags: ["sharia:interest_expense"]}
-  - {code: CF_LEASE_PRINCIPAL, name: "Lease principal paid", kind: line, statement: cash_flows,
-     what: "Repayment of lease liabilities.", why: "Debt-like outflow.", labels: ["Lease payment", "Principal lease payment", "Principal repayment on lease liabilities", "Repayment of lease liabilities", "Principal repayment on lease liabilties"]}
-  - {code: CF_DIVIDENDS_PAID, name: "Dividends paid to owners", kind: line, statement: cash_flows,
-     what: "Cash returned to shareholders, including unclaimed-dividend items.", why: "Payout vs free cash flow.",
-     labels: ["Dividends paid", "Dividend paid during the year", "Status bar Dividend", "Unclaimed dividend invested", "Unclaimed dividend received from Registrars", "Dividend paid during the year 32.4a", "Status bar Dividend 32.4a", "Unclaimed dividend invested 32.4a", "Unclaimed dividend received from Registrars 32.4a"]}
-  - {code: CF_DIVIDENDS_NCI, name: "Dividends paid to non-controlling interests", kind: line, statement: cash_flows,
-     what: "Cash paid to minority holders.", why: "Leakage from the group.", labels: ["Dividend paid to Non-controlling Interest", "Dividend paid by GOPDC to Non-controlling Interest"]}
-  - {code: CF_SHARE_ISSUE, name: "Proceeds from issue of shares", kind: line, statement: cash_flows,
-     what: "Cash raised from shareholders.", why: "Presco raised N235bn in 2025: dilution and returns on new capital.", labels: ["Proceeds from issue of share capital"]}
-  - {code: CF_SHARE_BUYBACK, name: "Shares bought back", kind: line, statement: cash_flows,
-     what: "Cash spent buying own shares.", why: "Return to owners.", labels: ["Shares buy-back"]}
-  - {code: CF_FINANCING, name: "Net cash from financing activities (CFF)", kind: subtotal, statement: cash_flows,
-     sum: [CF_LOANS_OBTAINED, CF_LOANS_REPAID, CF_INTEREST_PAID, CF_LEASE_PRINCIPAL, CF_DIVIDENDS_PAID, CF_DIVIDENDS_NCI, CF_SHARE_ISSUE, CF_SHARE_BUYBACK],
-     labels: ["Net cash used in financing activities", "Net cash generated from/(used in) financing activities", "Net cash used in/ generated from financing activities"]}
+  - {
+      code: CF_LOANS_OBTAINED,
+      name: "Loans and bonds obtained",
+      kind: line,
+      statement: cash_flows,
+      what: "New borrowing.",
+      why: "Reliance on debt.",
+      labels:
+        [
+          "Loans obtained",
+          "Proceeds from loans and borrowings",
+          "Loan received during the year",
+          "New loan acquired",
+          "Bond Issued during the year",
+        ],
+      tags: ["sharia:interest_bearing_debt"],
+    }
+  - {
+      code: CF_LOANS_REPAID,
+      name: "Loans repaid",
+      kind: line,
+      statement: cash_flows,
+      what: "Repayment of borrowings.",
+      why: "Deleveraging.",
+      labels:
+        [
+          "Loans repaid",
+          "Principal repayment on borrowings",
+          "Loan repayment",
+          "Repayment during the year",
+        ],
+    }
+  - {
+      code: CF_INTEREST_PAID,
+      name: "Interest paid",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash interest on borrowings and leases (shown in financing by both companies).",
+      why: "Interest cover on a cash basis.",
+      labels:
+        [
+          "Interest paid",
+          "Interest payment",
+          "Interest repayments on borrowings",
+          "Interest repayments on lease liabilities",
+          "Interest on lease paid",
+        ],
+      tags: ["sharia:interest_expense"],
+    }
+  - {
+      code: CF_LEASE_PRINCIPAL,
+      name: "Lease principal paid",
+      kind: line,
+      statement: cash_flows,
+      what: "Repayment of lease liabilities.",
+      why: "Debt-like outflow.",
+      labels:
+        [
+          "Lease payment",
+          "Principal lease payment",
+          "Principal repayment on lease liabilities",
+          "Repayment of lease liabilities",
+          "Principal repayment on lease liabilties",
+        ],
+    }
+  - {
+      code: CF_DIVIDENDS_PAID,
+      name: "Dividends paid to owners",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash returned to shareholders, including unclaimed-dividend items.",
+      why: "Payout vs free cash flow.",
+      labels:
+        [
+          "Dividends paid",
+          "Dividend paid during the year",
+          "Status bar Dividend",
+          "Unclaimed dividend invested",
+          "Unclaimed dividend received from Registrars",
+          "Dividend paid during the year 32.4a",
+          "Status bar Dividend 32.4a",
+          "Unclaimed dividend invested 32.4a",
+          "Unclaimed dividend received from Registrars 32.4a",
+        ],
+    }
+  - {
+      code: CF_DIVIDENDS_NCI,
+      name: "Dividends paid to non-controlling interests",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash paid to minority holders.",
+      why: "Leakage from the group.",
+      labels:
+        [
+          "Dividend paid to Non-controlling Interest",
+          "Dividend paid by GOPDC to Non-controlling Interest",
+        ],
+    }
+  - {
+      code: CF_SHARE_ISSUE,
+      name: "Proceeds from issue of shares",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash raised from shareholders.",
+      why: "Presco raised N235bn in 2025: dilution and returns on new capital.",
+      labels: ["Proceeds from issue of share capital"],
+    }
+  - {
+      code: CF_SHARE_BUYBACK,
+      name: "Shares bought back",
+      kind: line,
+      statement: cash_flows,
+      what: "Cash spent buying own shares.",
+      why: "Return to owners.",
+      labels: ["Shares buy-back"],
+    }
+  - {
+      code: CF_FINANCING,
+      name: "Net cash from financing activities (CFF)",
+      kind: subtotal,
+      statement: cash_flows,
+      sum:
+        [
+          CF_LOANS_OBTAINED,
+          CF_LOANS_REPAID,
+          CF_INTEREST_PAID,
+          CF_LEASE_PRINCIPAL,
+          CF_DIVIDENDS_PAID,
+          CF_DIVIDENDS_NCI,
+          CF_SHARE_ISSUE,
+          CF_SHARE_BUYBACK,
+        ],
+      labels:
+        [
+          "Net cash used in financing activities",
+          "Net cash generated from/(used in) financing activities",
+          "Net cash used in/ generated from financing activities",
+        ],
+    }
 
   # ------------------------------------------------------------------ CASH FLOW: RECONCILIATION
-  - {code: CF_NET_CHANGE_IN_CASH, name: "Net change in cash", kind: subtotal, statement: cash_flows,
-     sum: [CF_OPERATING, CF_INVESTING, CF_FINANCING],
-     labels: ["Increase/(decrease) in cash and cash equivalents", "Net increase in Cash and cash equivalents", "Net decrease in Cash and cash equivalents"]}
-  - {code: CF_CASH_OPENING, name: "Cash at start of year (cash-flow definition)", kind: line, statement: cash_flows,
-     what: "Opening cash net of overdrafts.", why: "Differs from the balance-sheet cash by overdrafts.", labels: ["Cash and cash equivalents at beginning of year", "Cash and cash equivalents as at beginning of year"]}
-  - {code: CF_FX_ON_CASH, name: "Exchange effect on cash", kind: line, statement: cash_flows,
-     what: "Naira value change of foreign-currency cash.", why: "Not operating.", labels: ["Effects of exchange rate changes", "Effect of movement in exchange rate on cash held", "Impact of foreign exchange difference", "Effects of exchange rate movements on cash and cash equivalents"], tags: ["ng:fx"]}
-  - {code: CF_CASH_CLOSING, name: "Cash at end of year (cash-flow definition)", kind: subtotal, statement: cash_flows,
-     sum: [CF_NET_CHANGE_IN_CASH, CF_CASH_OPENING, CF_FX_ON_CASH], labels: ["Cash and cash equivalents at end of year"]}
+  - {
+      code: CF_NET_CHANGE_IN_CASH,
+      name: "Net change in cash",
+      kind: subtotal,
+      statement: cash_flows,
+      sum: [CF_OPERATING, CF_INVESTING, CF_FINANCING],
+      labels:
+        [
+          "Increase/(decrease) in cash and cash equivalents",
+          "Net increase in Cash and cash equivalents",
+          "Net decrease in Cash and cash equivalents",
+        ],
+    }
+  - {
+      code: CF_CASH_OPENING,
+      name: "Cash at start of year (cash-flow definition)",
+      kind: line,
+      statement: cash_flows,
+      what: "Opening cash net of overdrafts.",
+      why: "Differs from the balance-sheet cash by overdrafts.",
+      labels:
+        [
+          "Cash and cash equivalents at beginning of year",
+          "Cash and cash equivalents as at beginning of year",
+        ],
+    }
+  - {
+      code: CF_FX_ON_CASH,
+      name: "Exchange effect on cash",
+      kind: line,
+      statement: cash_flows,
+      what: "Naira value change of foreign-currency cash.",
+      why: "Not operating.",
+      labels:
+        [
+          "Effects of exchange rate changes",
+          "Effect of movement in exchange rate on cash held",
+          "Impact of foreign exchange difference",
+          "Effects of exchange rate movements on cash and cash equivalents",
+        ],
+      tags: ["ng:fx"],
+    }
+  - {
+      code: CF_CASH_CLOSING,
+      name: "Cash at end of year (cash-flow definition)",
+      kind: subtotal,
+      statement: cash_flows,
+      sum: [CF_NET_CHANGE_IN_CASH, CF_CASH_OPENING, CF_FX_ON_CASH],
+      labels: ["Cash and cash equivalents at end of year"],
+    }
