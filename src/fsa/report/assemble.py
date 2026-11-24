@@ -98,13 +98,15 @@ def build_report(con, chart, ratio_rules, company: dict, ticker: str, fy: int) -
     findings = sorted((finding_record(f) for f in json.loads((base / "findings.json").read_text())) if (base / "findings.json").exists() else [],
                       key=lambda r: (ORDER.get(r["materiality"], 9), r["section"], r["id"]))
     notes = json.loads((base / "disclosures.json").read_text()) if (base / "disclosures.json").exists() else []
+    ratings = json.loads((base / "ratings.json").read_text()) if (base / "ratings.json").exists() else None
+    not_generated = {k: v for k, v in NOT_GENERATED.items() if ratings is None}
     return {
         "schema": "report.v1", "version": VERSION, "status": "draft", "generated_on": date.today().isoformat(),
         "ticker": ticker, "company": company["name"], "fiscal_year": fy, "amounts_unit": "N millions unless stated; nominal, Group",
         "disclaimer": "Educational analysis, not investment advice. Items are matters to examine, never accusations. No buy, sell or hold view is given.",
-        "not_generated": NOT_GENERATED, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
+        "not_generated": not_generated, "ratings": ratings, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
         "findings": findings, "data_notes": notes,
-        "inputs_missing": [name for name, ok in (("findings.json", (base / "findings.json").exists()), ("disclosures.json", (base / "disclosures.json").exists())) if not ok],
+        "inputs_missing": [name for name, ok in (("findings.json", (base / "findings.json").exists()), ("disclosures.json", (base / "disclosures.json").exists()), ("ratings.json", (base / "ratings.json").exists())) if not ok],
         "section_titles": layout["section_titles"],
     }
 
@@ -124,7 +126,17 @@ def to_markdown(rep: dict) -> str:
          f"> **DRAFT {rep['version']}.** {rep['disclaimer']} Amounts: {rep['amounts_unit']}.", ""]
     if rep["inputs_missing"]:
         L += [f"> Missing inputs for this report: {', '.join(rep['inputs_missing'])}.", ""]
-    L += [f"## A. {titles['A']}", "", f"- **Ratings:** {rep['not_generated']['ratings']}", f"- **Data-quality grade:** {rep['not_generated']['data_quality_grade']}",
+    rt = rep.get("ratings")
+    if rt:
+        eq, fh, fr = rt["earnings_quality"], rt["financial_health"], rt["forensic_risk"]
+        rating_lines = [f"- **Financial Health:** {fh['rating']} (pillars: " + ", ".join(f"{k} {v['level'] or 'not rated'}" for k, v in fh["pillars"].items()) + ")",
+                        f"- **Earnings Quality:** {eq['rating']} ({eq['points']} demerit points from {eq['tests_run']} tests run)",
+                        f"- **Forensic Risk:** {fr['rating']}. {fr['note']} {fr['red_not_assignable'] or ''}".rstrip(),
+                        f"- **Data-quality grade:** {rt['data_quality']['grade']}",
+                        "- The three ratings are kept separate on purpose. They are drafts from `rules/ratings.yaml`, counts of named tests, not verdicts."]
+    else:
+        rating_lines = [f"- **Ratings:** {rep['not_generated']['ratings']}", f"- **Data-quality grade:** {rep['not_generated']['data_quality_grade']}"]
+    L += [f"## A. {titles['A']}", ""] + rating_lines + [
           f"- **Findings:** {len(rep['findings'])} items to examine: "
           + ", ".join(f"{sum(f['materiality'] == m for f in rep['findings'])} {m}" for m in ("high", "medium", "low")) + ".", ""]
     for letter in "BCDEFGHIJK":
@@ -157,7 +169,11 @@ def to_markdown(rep: dict) -> str:
             ref = "; ".join(f"{s['statement']} p.{s['page']} '{s['label']}'" for s in n["sources"]) if isinstance(n.get("sources"), list) else (n.get("sources") or "")
             L.append(f"- {n['name']}: {'n/a' if n['value'] is None else show(n['value'])}" + (f" ({ref})" if ref else ""))
         L += ["", f"**Documents to request:** {', '.join(f['docs_needed']) or 'none listed'} · **Status:** {f['status']} · rules {f['version']}", ""]
-    L += [f"## M. {titles['M']}", "", rep["not_generated"]["conclusion"], "", "## Data notes and disclaimers", ""]
+    if rt:
+        L += [f"## M. {titles['M']}", "", f"**Category (draft, from the rating rules): {rt['conclusion']['category']}.** Trend measures: "
+              + "; ".join(f"{x['measure']} {x['state']}" for x in rt["conclusion"]["trend"]) + ". This is a category from stated tests, not a narrative conclusion; the narrative waits for review.", "", "## Data notes and disclaimers", ""]
+    else:
+        L += [f"## M. {titles['M']}", "", rep["not_generated"]["conclusion"], "", "## Data notes and disclaimers", ""]
     for n in rep["data_notes"]:
         L.append(f"- **{n['category']}** ({n['severity']}): {n['text']}")
     return "\n".join(L) + "\n"

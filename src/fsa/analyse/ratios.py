@@ -90,7 +90,7 @@ class Evaluator:
             left, ok = self.ev(node.left, period), True
             for op, comp in zip(node.ops, node.comparators):
                 right = self.ev(comp, period)
-                ok = ok and {ast.Lt: left < right, ast.LtE: left <= right, ast.Gt: left > right, ast.GtE: left >= right}[type(op)]
+                ok = ok and {ast.Lt: left < right, ast.LtE: left <= right, ast.Gt: left > right, ast.GtE: left >= right, ast.Eq: left == right, ast.NotEq: left != right}[type(op)]
                 left = right
             return ok
         if isinstance(node, ast.BoolOp):                         # stops at the first deciding part, so a later missing input is not needed

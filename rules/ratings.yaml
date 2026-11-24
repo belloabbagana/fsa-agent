@@ -1,0 +1,124 @@
+# Rating rules v0.1-draft. Bello owns this file; Claude drafted it. Nothing here is a verdict: each rating is a transparent
+# count of named tests, so the report can always show WHICH tests drove the rating (agent instructions sections 3, 16, 17).
+#
+# How to read it
+#   - A `when` is a rule expression using the same names as rules/findings/ (account codes, metrics, ratio ids, _prev, restated_lines,
+#     flags_tripped ...). Same engine, same N/M handling.
+#   - A test that cannot be computed (missing input, ratio not meaningful) is NOT TESTED. It is listed in the report and never
+#     counts as passed, failed or zero. A rating needs enough tests run (`min_tested`); otherwise it reads "Not rated: insufficient data".
+#   - Three ratings stay separate (instructions 17A): a strong company can have weak earnings quality, and vice versa.
+#   - Levels are tried from worst to best; the first level whose `when` is true applies.
+#   - Every threshold is a judgement. Thresholds marked [NIGERIA] are in nominal naira, in a high-inflation, high-rate economy.
+version: 0.1-draft
+
+# ------------------------------------------------------------------------------------------------------------------
+# 1. FINANCIAL HEALTH: Strong, Healthy, Mixed, Weak, Distressed.  Can it carry on and fund itself?
+#    Four pillars, each scored strong (2), adequate (1), weak (0) or critical (-1), then combined by simple counts.
+# ------------------------------------------------------------------------------------------------------------------
+financial_health:
+  min_pillars_rated: 3
+  pillars:
+    profitability:
+      why: "Does the business earn more than capital costs? ROIC against a hurdle is the CFA test; margin guards against a high ROIC on a thin base."
+      levels:                                   # worst to best
+        - {level: critical, when: "PL_PROFIT_FOR_YEAR < 0 and CF_OPERATING < 0"}
+        - {level: weak,     when: "roic < 10 or operating_margin < 5"}                     # [NIGERIA] 10% is below short-term government yields in recent years
+        - {level: strong,   when: "roic >= 25 and operating_margin >= 15"}                 # [NIGERIA] 25% is roughly the order of recent policy-rate levels
+        - {level: adequate, when: "True"}
+    liquidity:
+      why: "Can it pay what falls due within a year? Current ratio alone misleads for firms funded by suppliers, so operating cash flow cover is the second test."
+      levels:
+        - {level: critical, when: "current_ratio < 0.5 and CF_OPERATING <= 0"}
+        - {level: weak,     when: "current_ratio < 1 and cfo_to_current_liabilities < 0.4"}
+        - {level: strong,   when: "current_ratio >= 1.5 and cash_ratio >= 0.2"}
+        - {level: adequate, when: "True"}
+    leverage:
+      why: "Can debt be serviced from earnings? Net debt to EBITDA (how many years of earnings) and interest cover (how many times interest is covered) look at stock and flow."
+      levels:
+        - {level: critical, when: "BS_TOTAL_EQUITY < 0 or interest_cover < 1.2 or net_debt_to_ebitda >= 5"}
+        - {level: weak,     when: "interest_cover < 2.5 or net_debt_to_ebitda >= 3"}
+        - {level: strong,   when: "interest_cover >= 5 and net_debt_to_ebitda < 1"}
+        - {level: adequate, when: "True"}
+    cash_generation:
+      why: "Does the business fund itself? Operating cash flow after capex (free cash flow) is what is left for debt service and owners."
+      levels:
+        - {level: critical, when: "CF_OPERATING < 0 and prior(CF_OPERATING) < 0"}          # persistent negative operating cash flow (instructions 16)
+        - {level: weak,     when: "CF_OPERATING < 0 or (FCF < 0 and prior(FCF) < 0)"}
+        - {level: strong,   when: "FCF > 0 and cfo_to_net_income >= 0.9"}
+        - {level: adequate, when: "True"}
+  overall:                                      # counts of pillars at each level; n_rated = pillars that could be scored
+    - {rating: Distressed, when: "n_critical >= 2 or (n_critical >= 1 and n_weak >= 2)"}
+    - {rating: Weak,       when: "n_critical >= 1 or n_weak >= 2"}
+    - {rating: Strong,     when: "n_strong >= 3 and n_weak == 0"}
+    - {rating: Healthy,    when: "n_weak == 0 and n_strong >= 1"}
+    - {rating: Mixed,      when: "True"}
+
+# ------------------------------------------------------------------------------------------------------------------
+# 2. EARNINGS QUALITY: High, Good, Moderate, Low, Questionable.  Are profits backed by cash and repeatable?
+#    Demerit points for each adverse test; the total sets the level. Same thresholds as the finding rules, so a
+#    finding and a demerit never disagree about what counts as adverse.
+# ------------------------------------------------------------------------------------------------------------------
+earnings_quality:
+  min_tested: 6                                 # of the tests below
+  tests:
+    - {id: cash_backing,        points: 1, when: "cfo_to_net_income < 0.8 and PL_PROFIT_FOR_YEAR > 0", why: "Profit not turning into operating cash (rule D-01)"}
+    - {id: cash_backing_deep,   points: 1, when: "cfo_to_net_income < 0.5 and PL_PROFIT_FOR_YEAR > 0", why: "Severe version of the above"}
+    - {id: cash_backing_repeat, points: 1, when: "cfo_to_net_income < 0.8 and cfo_to_net_income_prev < 0.8", why: "Two years running: a pattern, not a timing blip"}
+    - {id: accruals,            points: 1, when: "accruals_ratio >= 5", why: "Accruals large against assets (rule F-01)"}
+    - {id: accruals_high,       points: 1, when: "accruals_ratio >= 20", why: "Severe version of the above"}
+    - {id: non_core,            points: 1, when: "abs(non_core_share_of_pretax_profit) >= 15", why: "Profit from items outside trading (rule F-02)"}
+    - {id: non_core_high,       points: 1, when: "abs(non_core_share_of_pretax_profit) >= 30", why: "Severe version of the above"}
+    - {id: restated,            points: 1, when: "restated_lines >= 1", why: "Prior-year figures changed (rule G-05)"}
+    - {id: restated_many,       points: 1, when: "restated_lines >= 5", why: "Many lines changed"}
+    - {id: growth_gaps,         points: 1, when: "flags_tripped >= 1", why: "Receivables, inventory, payables or cash-to-profit gap flagged"}
+    - {id: growth_gaps_many,    points: 1, when: "flags_tripped >= 3", why: "Several gap flags together. In devaluation years these also move for macro reasons, so read with rule I and the review notes"}
+    - {id: monetary_position,   points: 1, when: "abs(monetary_position_share_of_pretax_profit) >= 15", why: "Inflation-accounting result is a large part of profit (rule I-02)"}
+  levels:                                       # by total demerit points; worst first
+    - {rating: Questionable, when: "points >= 7"}
+    - {rating: Low,          when: "points >= 5"}
+    - {rating: Moderate,     when: "points >= 3"}
+    - {rating: Good,         when: "points >= 1"}
+    - {rating: High,         when: "True"}
+
+# ------------------------------------------------------------------------------------------------------------------
+# 3. FORENSIC RISK: Green, Yellow, Orange, Red.  Distinguishes accounting concern from financial distress (instructions 16).
+#    The published screens are statistical and calibrated on other markets, so alone they can only reach Yellow or Orange.
+#    RED needs the auditor's report (going concern, qualified or adverse opinion), which the engine cannot read yet:
+#    until it can, the code never assigns Red and says so in the report.
+# ------------------------------------------------------------------------------------------------------------------
+forensic_risk:
+  red_requires_auditor_tests: true
+  levels:
+    - {rating: Red,    when: "auditor_adverse >= 1", needs: [auditor_adverse]}               # not testable yet; see above
+    - {rating: Orange, when: "(flags_tripped >= 3 and (beneish_m > -1.78 or restated_lines >= 5)) or (beneish_m > -1.78 and altman_z < 4.35 and restated_lines >= 1)"}
+    - {rating: Yellow, when: "flags_tripped >= 1 or beneish_m > -1.78 or altman_z < 4.35 or restated_lines >= 1 or later_restated_lines >= 1"}
+    - {rating: Green,  when: "True"}
+  note_for_report: "Green would mean no screen tripped; it never proves the accounts are free of risk. Yellow and Orange are screens to examine, not findings."
+
+# ------------------------------------------------------------------------------------------------------------------
+# 4. DATA QUALITY: High, Moderate, Low.  Shown at the top of the report (instructions 3). Facts about the INPUT, not the company.
+# ------------------------------------------------------------------------------------------------------------------
+data_quality:
+  levels:
+    - {grade: Low,      when: "open_mapping_lines >= 1 or unsigned_mapping >= 1 or filing_arithmetic_notes >= 3"}
+    - {grade: Moderate, when: "filing_arithmetic_notes >= 1 or pdf_quality_notes >= 1 or restated_lines >= 1 or provider_differences >= 3 or peer_set_unchecked >= 1"}
+    - {grade: High,     when: "True"}
+  why: "Low if lines are unmapped or the mapping is not signed off, or the filing's own arithmetic fails in three or more places. Moderate if the filing's arithmetic fails once or twice, the PDF text was damaged, comparatives were restated, the third-party cross-check disagrees on three or more figures, or a peer lacks a conflict check. Otherwise High. Inputs are counted by code from the mapping, reconciliation and data notes."
+
+# ------------------------------------------------------------------------------------------------------------------
+# 5. CONCLUSION CATEGORY (section M). One of six phrases from instructions 17M, chosen from the Financial Health rating and the trend.
+#    Trend = direction of the last two years on three measures: roic, cfo_to_net_income, net_debt_to_ebitda (lower is better).
+# ------------------------------------------------------------------------------------------------------------------
+conclusion:
+  trend_measures:
+    - {name: roic,                 better: higher}
+    - {name: cfo_to_net_income,    better: higher}
+    - {name: net_debt_to_ebitda,   better: lower}
+  levels:                                       # n_improving and n_worsening count the measures that moved by more than `trend_tolerance_pct` of their prior value
+    - {category: financially distressed, when: "health_distressed >= 1"}
+    - {category: weakening,              when: "health_weak >= 1 or n_worsening >= 2"}
+    - {category: strong and improving,   when: "health_ok >= 1 and n_improving >= 2 and n_worsening == 0"}
+    - {category: strong but weakening,   when: "health_ok >= 1 and n_worsening >= 1"}
+    - {category: stable,                 when: "health_ok >= 1 and n_worsening == 0"}
+    - {category: mixed,                  when: "True"}
+  trend_tolerance_pct: 10

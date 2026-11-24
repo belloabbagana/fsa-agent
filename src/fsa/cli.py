@@ -23,6 +23,7 @@ from fsa.findings import writer as fwr
 from fsa.findings import review as frv
 from fsa.findings import triggers as trg
 from fsa.report import assemble as asm
+from fsa.report import ratings as rtg
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
@@ -510,6 +511,23 @@ def cmd_write_findings(args) -> None:
     print(f"wrote {out / 'findings.md'}")
 
 
+def cmd_ratings(args) -> None:
+    chart, con, ratio_rules = load_chart(), connect(), rat.load_rules()
+    cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
+    targets = [(c["ticker"], fy) for c in cfg["companies"] if c.get("role") == "core" for fy in (2023, 2024, 2025)] if args.ticker == "all" else [(args.ticker, int(args.fy.upper().replace("FY", "")))]
+    for ticker, fy in targets:
+        company = next(c for c in cfg["companies"] if c["ticker"] == ticker)
+        if company.get("conflict_check") != "pass":
+            raise SystemExit(f"{ticker} has no conflict-check pass in config/companies.yaml (project rule 3).")
+        r = rtg.rate_company_year(con, chart, ratio_rules, cfg, ticker, fy)
+        out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "ratings.json").write_text(json.dumps(r, indent=2, default=str))
+        (out / "ratings.md").write_text(rtg.to_markdown(r))
+        print(f"{ticker} FY{fy}: health {r['financial_health']['rating']} | earnings quality {r['earnings_quality']['rating']} ({r['earnings_quality']['points']} pts) | "
+              f"forensic {r['forensic_risk']['rating']} | data {r['data_quality']['grade']} | conclusion: {r['conclusion']['category']}")
+
+
 def cmd_report(args) -> None:
     ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
     chart, con = load_chart(), connect()
@@ -597,6 +615,8 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
+    rg = sub.add_parser("ratings", help="Apply rules/ratings.yaml to a company-year (or `all` for the six core company-years)")
+    rg.add_argument("ticker"); rg.add_argument("fy", nargs="?", default="FY0"); rg.set_defaults(func=cmd_ratings)
     rp = sub.add_parser("report", help="Assemble the Markdown and JSON report for a company-year from findings, scorecards and data notes")
     rp.add_argument("ticker"); rp.add_argument("fy"); rp.set_defaults(func=cmd_report)
     rf = sub.add_parser("review-findings", help="Opus review of written findings (notes only; never edits the finding)")

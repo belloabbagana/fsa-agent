@@ -33,7 +33,9 @@
 # ---- DECISION LOG (Bello, 24 Nov 2026): all eight AGREED. Decision 1 refined as the rule above; applied to every ratio:
 #      cfo_to_current_liabilities and net_debt_to_ebitda now use the average balance; a year-end net debt / EBITDA is kept as a
 #      secondary ratio for covenant-style comparison.
-version: "0.1"
+# ---- v0.2 (drafted by Claude, 24 Nov 2026, AWAITING Bello's approval): adds activity ratios (turnover forms of DSO/DIO/DPO, working-capital,
+#      equity and invested-capital turnover) and performance ratios (ROCE, operating ROA, DuPont legs, cost-to-revenue ratios). No v0.1 ratio changed.
+version: "0.2"
 status: approved_by_analyst   # decisions agreed 24 Nov 2026; later changes need a new version
 units: {amounts: "N millions", days_in_year: 365}
 
@@ -72,6 +74,10 @@ metrics:
     formula: "BS_TOTAL_EQUITY + NET_DEBT_INCL_LEASES"
     what: "Capital provided by owners and net lenders."
     why: "Denominator of ROIC; a cash-rich balance sheet should not dilute the return on operating capital."
+  NET_WORKING_CAPITAL:
+    formula: "BS_TOTAL_CURRENT_ASSETS - BS_TOTAL_CURRENT_LIABILITIES"
+    what: "Current assets less current liabilities, including cash and short-term debt."
+    why: "Denominator of working-capital turnover. Can be negative for businesses funded by suppliers; then the turnover is N/M."
   EFFECTIVE_TAX_RATE:
     formula: "-PL_INCOME_TAX / PL_PROFIT_BEFORE_TAX"
     nm_if: ["PL_PROFIT_BEFORE_TAX <= 0", "EFFECTIVE_TAX_RATE < 0", "EFFECTIVE_TAX_RATE > 0.6"]
@@ -202,6 +208,93 @@ ratios:
     formula: "PL_REVENUE / avg(BS_PPE)"
     nm_if: ["avg(BS_PPE) <= 0"]
     why: "Capital intensity. Cement is capital heavy: compare with peers, not across sectors."
+  - id: receivables_turnover
+    category: efficiency
+    unit: x
+    formula: "PL_REVENUE / avg(BS_TRADE_RECEIVABLES)"
+    nm_if: ["avg(BS_TRADE_RECEIVABLES) <= 0"]
+    why: "Times a year the receivables book is collected. The inverse of DSO; a falling turnover means slower collection."
+  - id: inventory_turnover
+    category: efficiency
+    unit: x
+    formula: "-PL_COST_OF_SALES / avg(BS_INVENTORIES)"
+    nm_if: ["avg(BS_INVENTORIES) <= 0", "PL_COST_OF_SALES >= 0"]
+    why: "Times a year stock is sold through, on cost of sales. The inverse of DIO. Biological assets are excluded."
+  - id: payables_turnover
+    category: efficiency
+    unit: x
+    formula: "-PL_COST_OF_SALES / avg(BS_TRADE_PAYABLES)"
+    nm_if: ["avg(BS_TRADE_PAYABLES) <= 0", "PL_COST_OF_SALES >= 0"]
+    caveat: "Trade and other payables include accruals, so turnover is a lower bound."
+    why: "Times a year suppliers are paid. The inverse of DPO; a falling turnover is suppliers being paid later."
+  - id: working_capital_turnover
+    category: efficiency
+    unit: x
+    formula: "PL_REVENUE / avg(NET_WORKING_CAPITAL)"
+    nm_if: ["avg(NET_WORKING_CAPITAL) <= 0"]
+    why: "Sales per naira of net working capital. N/M when working capital is negative, which is a sign of supplier funding, not of efficiency."
+  - id: equity_turnover
+    category: efficiency
+    unit: x
+    formula: "PL_REVENUE / avg(BS_TOTAL_EQUITY)"
+    nm_if: ["avg(BS_TOTAL_EQUITY) <= 0"]
+    why: "Sales per naira of equity: the asset-turnover leg of DuPont before leverage."
+  - id: invested_capital_turnover
+    category: efficiency
+    unit: x
+    formula: "PL_REVENUE / avg(INVESTED_CAPITAL)"
+    nm_if: ["avg(INVESTED_CAPITAL) <= 0"]
+    why: "Sales per naira of invested capital (equity plus net debt incl. leases): the turnover leg of ROIC = margin x turnover."
+
+
+  - id: roce
+    category: returns
+    unit: pct
+    formula: "PL_OPERATING_PROFIT / avg(BS_TOTAL_ASSETS - BS_TOTAL_CURRENT_LIABILITIES) * 100"
+    nm_if: ["avg(BS_TOTAL_ASSETS - BS_TOTAL_CURRENT_LIABILITIES) <= 0"]
+    why: "Pre-tax operating return on capital employed (assets less current liabilities). Unlike ROIC it ignores tax and treats cash as capital; compare with peers on the same definition."
+  - id: operating_roa
+    category: returns
+    unit: pct
+    formula: "PL_OPERATING_PROFIT / avg(BS_TOTAL_ASSETS) * 100"
+    nm_if: ["avg(BS_TOTAL_ASSETS) <= 0"]
+    why: "Operating return on all assets before interest and tax, so financing choices do not move it. Still includes FX and fair-value gains inside operating profit."
+  - id: equity_multiplier
+    category: returns
+    unit: x
+    formula: "avg(BS_TOTAL_ASSETS) / avg(BS_EQUITY_OWNERS)"
+    nm_if: ["avg(BS_EQUITY_OWNERS) <= 0"]
+    why: "Financial leverage in the DuPont chain: a higher ROE built on a higher multiplier is borrowed, not earned."
+  - id: tax_burden
+    category: returns
+    unit: x
+    formula: "PL_PROFIT_FOR_YEAR / PL_PROFIT_BEFORE_TAX"
+    nm_if: ["PL_PROFIT_BEFORE_TAX <= 0"]
+    why: "Share of pre-tax profit kept after tax (DuPont step 1). Falls when the tax rate rises."
+  - id: interest_burden
+    category: returns
+    unit: x
+    formula: "PL_PROFIT_BEFORE_TAX / PL_OPERATING_PROFIT"
+    nm_if: ["PL_OPERATING_PROFIT <= 0"]
+    why: "Share of operating profit left after net finance costs and other items below operating profit (DuPont step 2). Above 1 when finance income or other gains exceed finance costs."
+  - id: admin_cost_to_revenue
+    category: profitability
+    unit: pct
+    formula: "-PL_ADMIN_EXPENSES / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Overhead intensity. Falling because revenue is inflated by price rises, not because costs are controlled, is a common nominal-growth illusion."
+  - id: selling_distribution_to_revenue
+    category: profitability
+    unit: pct
+    formula: "-PL_SELLING_DISTRIBUTION / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Cost of reaching customers. For cement and bulk commodities, diesel and haulage costs sit here."
+  - id: finance_cost_to_revenue
+    category: profitability
+    unit: pct
+    formula: "-PL_FINANCE_COSTS / PL_REVENUE * 100"
+    nm_if: ["PL_REVENUE <= 0"]
+    why: "Burden of interest on sales. Includes FX losses on borrowings when the company reports them in finance costs."
 
   # ---------------- liquidity
   - id: current_ratio
