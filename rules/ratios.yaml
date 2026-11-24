@@ -1,4 +1,4 @@
-# RATIO DEFINITIONS: non-financial corporates (DRAFT v0.1 by Claude, for Bello to review and decide)
+# RATIO DEFINITIONS: non-financial corporates (v0.1, drafted by Claude, DECISIONS APPROVED by Bello 24 Nov 2026)
 #
 # What this is: the formula, the reason, and the "not meaningful" condition for every ratio. The code only evaluates
 # these; it never decides what a ratio means (project rule: analytical judgement lives in rules/).
@@ -13,9 +13,9 @@
 # missing. It is never forced into a number (agent instructions, section 15).
 #
 # DECISIONS FOR YOU (each one changes the numbers):
-#  1. AVERAGE vs YEAR-END balances for returns, turnover and days. I use the average of opening and closing (standard CFA
-#     practice, avoids flattering a ratio in a growth year). Alternative: year-end only. Every report carries an opening
-#     column, so the average is always available.
+#  1. AVERAGE vs YEAR-END balances. RULE (Bello): when a balance-sheet item is compared with an item from another statement
+#     (profit and loss, cash flow) use the AVERAGE of opening and closing; when a balance-sheet item is compared with another
+#     balance-sheet item use the YEAR-END figures. Every report carries an opening column, so the average is always available.
 #  2. LEVERAGE PAIRING. EBITDA here is after IFRS 16 (lease costs are below EBITDA), so the matching debt must INCLUDE lease
 #     liabilities. Headline = (net debt incl. leases) / EBITDA. Overdrafts are debt (chart decision 5). Alternative headline:
 #     net debt excluding leases over EBITDA before IFRS 16 (needs an approximation; shown as a secondary ratio).
@@ -30,7 +30,11 @@
 #  8. NOMINAL, NOT REAL. Every ratio is in nominal naira. No inflation restatement (out of scope for v1), so growth rates mix
 #     volume, price and inflation. This is disclosed in every report.
 #
-version: "0.1-draft"
+# ---- DECISION LOG (Bello, 24 Nov 2026): all eight AGREED. Decision 1 refined as the rule above; applied to every ratio:
+#      cfo_to_current_liabilities and net_debt_to_ebitda now use the average balance; a year-end net debt / EBITDA is kept as a
+#      secondary ratio for covenant-style comparison.
+version: "0.1"
+status: approved_by_analyst   # decisions agreed 24 Nov 2026; later changes need a new version
 units: {amounts: "N millions", days_in_year: 365}
 
 # ---------------------------------------------------------------------------------------------------------- building blocks
@@ -221,8 +225,8 @@ ratios:
   - id: cfo_to_current_liabilities
     category: liquidity
     unit: x
-    formula: "CF_OPERATING / BS_TOTAL_CURRENT_LIABILITIES"
-    nm_if: ["BS_TOTAL_CURRENT_LIABILITIES <= 0"]
+    formula: "CF_OPERATING / avg(BS_TOTAL_CURRENT_LIABILITIES)"
+    nm_if: ["avg(BS_TOTAL_CURRENT_LIABILITIES) <= 0"]
     why: "Cash generated against what is due soon."
 
   # ---------------- leverage and solvency
@@ -247,9 +251,16 @@ ratios:
   - id: net_debt_to_ebitda
     category: leverage
     unit: x
+    formula: "avg(NET_DEBT_INCL_LEASES) / EBITDA"
+    nm_if: ["EBITDA <= 0"]
+    why: "Years of EBITDA to repay average net debt (a balance against a flow uses the average balance). N/M when EBITDA is not positive (agent instructions, section 7). Headline leverage (decision 2)."
+  - id: net_debt_to_ebitda_year_end
+    category: leverage
+    unit: x
     formula: "NET_DEBT_INCL_LEASES / EBITDA"
     nm_if: ["EBITDA <= 0"]
-    why: "Years of EBITDA to repay net debt. N/M when EBITDA is not positive (agent instructions, section 7). Headline leverage (decision 2)."
+    secondary: true
+    why: "Same ratio on the year-end debt, which is how lenders usually test covenants. Shown beside the headline, never instead of it."
   - id: interest_cover
     category: leverage
     unit: x

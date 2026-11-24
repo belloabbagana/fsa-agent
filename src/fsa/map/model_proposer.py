@@ -50,9 +50,9 @@ def verify_model(answer: ModelAnswer, requested: str) -> set:
     return used
 
 
-async def _ask(prompt: str, model: str) -> ModelAnswer:
+async def _ask(prompt: str, model: str, system: str = SYSTEM) -> ModelAnswer:
     opts = ClaudeAgentOptions(
-        model=model, system_prompt=SYSTEM, max_turns=1, tools=[], allowed_tools=[],
+        model=model, system_prompt=system, max_turns=1, tools=[], allowed_tools=[],
         setting_sources=[], cwd=tempfile.mkdtemp(prefix="fsa-model-"),
     )
     ans = ModelAnswer(text="")
@@ -71,8 +71,8 @@ async def _ask(prompt: str, model: str) -> ModelAnswer:
     return ans
 
 
-def ask(prompt: str, model: str) -> ModelAnswer:
-    return asyncio.run(_ask(prompt, model))
+def ask(prompt: str, model: str, system: str = SYSTEM) -> ModelAnswer:
+    return asyncio.run(_ask(prompt, model, system))
 
 
 def model_check(model: str = "haiku") -> dict:

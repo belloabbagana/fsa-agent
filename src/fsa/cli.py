@@ -16,6 +16,7 @@ from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_che
 from fsa.map.finalize import finalize, load_decisions, signed_off
 from fsa.map.rules_mapper import propose as rule_propose
 from fsa.analyse import ratios as rat
+from fsa.classify import draft as gdraft
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
@@ -334,6 +335,35 @@ def cmd_ratios(args) -> None:
     if args.show:
         print("\n".join(lines))
 
+def cmd_draft_gics(args) -> None:
+    cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())["companies"]
+    labels = gdraft.load_ngx_labels()
+    companies = [{"ticker": c["ticker"], "name": c["name"], "sector": labels[c["ticker"]]["sector"], "sub_sector": labels[c["ticker"]]["sub_sector"]}
+                 for c in cfg if c["ticker"] in labels and not c.get("optional")]
+    model = yaml.safe_load((ROOT / "config" / "models.yaml").read_text()).get("draft_gics", "haiku")
+    items, used, problems = gdraft.draft(companies, model)
+    gdraft.write_yaml(items, companies, used, problems)
+    print(f"Drafted {len(items)} of {len(companies)} companies with {', '.join(sorted(used))} (verified from the usage report).")
+    for p in problems:
+        print("  REJECTED:", p)
+    for ticker, v in yaml.safe_load(gdraft.OUT.read_text())["gics"].items():
+        print(f"  {ticker:11s} {v['sector']} > {v['industry_group']} > {v['industry']} > {v['sub_industry']}  [{v['confidence']}]")
+
+
+def cmd_gics_sync(args) -> None:
+    con = connect()
+    sync_companies(con)
+    data = yaml.safe_load((ROOT / "config" / "gics_map.yaml").read_text())["gics"]
+    n = 0
+    for t, v in data.items():
+        if v.get("status") == "approved":
+            con.execute("UPDATE companies SET gics_sector=?, gics_industry_group=?, gics_industry=?, gics_sub_industry=? WHERE ticker=?",
+                        [v["sector"], v["industry_group"], v["industry"], v["sub_industry"], t])
+            n += 1
+    print(f"{n} approved classification(s) loaded; {len(data) - n} still proposed (not used).")
+    for r in con.execute("SELECT ticker, gics_industry, gics_sub_industry FROM companies ORDER BY gics_industry NULLS LAST, ticker").fetchall():
+        print("  ", r)
+
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
@@ -366,6 +396,10 @@ def main() -> None:
     dd.set_defaults(func=cmd_decisions)
     rt = sub.add_parser("ratios", help="Compute the ratios in rules/ratios.yaml for a company-year")
     rt.add_argument("ticker"); rt.add_argument("fy"); rt.add_argument("--show", action="store_true"); rt.set_defaults(func=cmd_ratios)
+    dg = sub.add_parser("draft-gics", help="Draft GICS classifications with a model (proposed only; the analyst approves)")
+    dg.set_defaults(func=cmd_draft_gics)
+    gs = sub.add_parser("gics-sync", help="Load the APPROVED classifications into the database")
+    gs.set_defaults(func=cmd_gics_sync)
     args = p.parse_args()
     args.func(args)
 
