@@ -1,6 +1,6 @@
 # Macro data interface: contract between a future Macro Agent and the FSA Agent
 
-Status: **draft v0.1: decisions 1 and 3 agreed 24 November 2026; 2, 4 and 5 open** · Written 24 November 2026 · The Macro Agent does not exist yet. This page fixes the contract so it can be built later without changing the FSA Agent.
+Status: **v0.1: all five decisions agreed 24 November 2026** · Written 24 November 2026 · The Macro Agent does not exist yet. This page fixes the contract so it can be built later without changing the FSA Agent.
 
 ## 1. Purpose and boundary
 
@@ -105,7 +105,7 @@ Written by the Macro Agent for people and for other agents. Each claim states it
 | # | Decision | Status |
 |---|---|---|
 | 1 | Default FX rate | **AGREED**: official rate, alternatives only as a disclosed sensitivity |
-| 2 | CPI choice and how a base-year change is handled | Open |
+| 2 | CPI choice and how a base-year change is handled | **AGREED**: headline inflation; deflate growth with the published year-on-year rate, which survives a re-base; keep index levels too and flag a re-base as a series break, never spliced. The Macro Agent verifies any re-basing date from the source |
 | 3 | Where the Macro Agent lives | **AGREED**: its own repository, so each agent can be published and versioned separately |
-| 4 | Maximum age of a vintage before a report flags it | Open |
-| 5 | Whether the FSA Agent later sends company exposure facts back to the Macro Agent | Open |
+| 4 | Maximum age of a vintage before a report flags it | **AGREED**: the vintage must be dated after the period it describes ends, and a report flags (never blocks on) a vintage older than 90 days |
+| 5 | Whether the FSA Agent later sends company exposure facts back to the Macro Agent | **AGREED**: no for v1. Revisit once both agents exist; if ever added, a one-way, read-only table of exposure facts under the same sourcing rules |
