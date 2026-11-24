@@ -93,9 +93,21 @@ class Evaluator:
                 ok = ok and {ast.Lt: left < right, ast.LtE: left <= right, ast.Gt: left > right, ast.GtE: left >= right}[type(op)]
                 left = right
             return ok
-        if isinstance(node, ast.BoolOp):
-            vals = [self.ev(v, period) for v in node.values]
-            return all(vals) if isinstance(node.op, ast.And) else any(vals)
+        if isinstance(node, ast.BoolOp):                         # stops at the first deciding part, so a later missing input is not needed
+            is_and = isinstance(node.op, ast.And)
+            for v in node.values:
+                got = self.ev(v, period)
+                if is_and and not got:
+                    return False
+                if not is_and and got:
+                    return True
+            return is_and
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+            if node.func.id == "abs" and len(node.args) == 1:
+                return abs(self.ev(node.args[0], period))
+            if node.func.id in ("min", "max") and len(node.args) == 2:
+                a, b = self.ev(node.args[0], period), self.ev(node.args[1], period)
+                return min(a, b) if node.func.id == "min" else max(a, b)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and len(node.args) == 1 and not node.keywords:
             arg = node.args[0]
             if node.func.id == "prior":

@@ -1,0 +1,68 @@
+# Text rules: search the auditor's report and notes. NOT TESTED yet: the engine cannot read these sections.
+# Each match must quote the passage; code verifies the quote exists in the PDF before the finding is kept.
+rules:
+  - id: A-01
+    section: A
+    title: Auditor opinion is qualified, adverse or a disclaimer
+    kind: text
+    search: ["qualified opinion", "adverse opinion", "disclaimer of opinion", "except for", "we do not express an opinion"]
+    where: auditor_report
+    type: risk
+    materiality: {fixed: high}
+    question: "What is the basis for the modification, and which statement lines does it affect?"
+    why: "A modified audit opinion is the strongest signal the auditor can give."
+    hypotheses:
+      - {h: "Scope limitation or disagreement with management", confirm: "basis-for-opinion paragraph", rule_out: "wording only"}
+    who_answers: management
+  - id: A-02
+    section: A
+    title: Material uncertainty about going concern
+    kind: text
+    search: ["going concern", "material uncertainty"]
+    where: [auditor_report, notes]
+    type: risk
+    materiality: {fixed: high}
+    question: "What conditions create the uncertainty and what are management's plans?"
+    why: "Going-concern language means the auditor or board sees real doubt about continuing."
+    hypotheses:
+      - {h: "Liquidity or covenant pressure", confirm: "debt and cash notes", rule_out: "boilerplate wording"}
+    who_answers: management
+  - id: A-03
+    section: A
+    title: Emphasis of matter or other-matter paragraph
+    kind: text
+    search: ["emphasis of matter", "other matter"]
+    where: auditor_report
+    type: risk
+    materiality: {fixed: medium}
+    question: "What does the auditor draw attention to, and why?"
+    why: "The auditor flags matters fundamental to understanding the statements."
+    hypotheses:
+      - {h: "Litigation or related-party matter", confirm: "referenced note", rule_out: "disclosure only"}
+    who_answers: management
+  - id: A-04
+    section: A
+    title: Key audit matters on revenue, receivables, valuation or related parties
+    kind: text
+    search: ["key audit matter"]
+    where: auditor_report
+    type: risk
+    materiality: {fixed: low}
+    question: "Which areas did the auditor spend most effort on, and do they match the numeric findings?"
+    why: "Key audit matters point to the areas of greatest judgement. Compare them with numeric flags."
+    hypotheses:
+      - {h: "KAM overlaps with a numeric flag", confirm: "same line item", rule_out: "different area"}
+    who_answers: public sources
+  - id: A-05
+    section: A
+    title: Restatement, prior-period error or change in accounting policy
+    kind: text
+    search: ["restated", "prior period error", "change in accounting policy", "reclassified"]
+    where: notes
+    type: risk
+    materiality: {fixed: medium}
+    question: "What changed, by how much, and does it alter earlier conclusions?"
+    why: "Changes to prior figures affect comparability."
+    hypotheses:
+      - {h: "Error correction", confirm: "note quantifies effect", rule_out: "presentation only"}
+    who_answers: management

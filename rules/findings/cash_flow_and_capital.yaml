@@ -1,0 +1,117 @@
+# Sections D (cash flow) and H (capital allocation, leverage). Draft v0.1.
+rules:
+  - id: D-01
+    section: D
+    title: Operating cash flow well below profit
+    kind: numeric
+    trigger: "cfo_to_net_income < 0.8 and PL_PROFIT_FOR_YEAR > 0"
+    type: risk
+    materiality: {measure: "(PL_PROFIT_FOR_YEAR - CF_OPERATING) / PL_PROFIT_BEFORE_TAX * 100", high: ">= 10", medium: ">= 3"}
+    facts: [cfo_to_net_income, CF_OPERATING, PL_PROFIT_FOR_YEAR, CF_WC_RECEIVABLES, CF_WC_INVENTORIES, CF_WC_PAYABLES]
+    question: "Which working-capital or non-cash items explain profit not turning into operating cash?"
+    why: "Profit that is not backed by cash is the most common early sign of low-quality earnings (agent instructions 9A)."
+    hypotheses:
+      - {h: "Working capital absorbed cash (receivables or inventory build)", confirm: "cash flow shows large receivable or inventory outflows", rule_out: "working-capital lines are small"}
+      - {h: "Profit includes non-cash gains (revaluation, FX, monetary position)", confirm: "those gains are reversed in the cash flow reconciliation", rule_out: "no such gains"}
+    who_answers: management
+    docs_needed: ["working capital notes"]
+  - id: D-02
+    section: D
+    title: Free cash flow negative
+    kind: numeric
+    trigger: "FCF < 0"
+    type: risk
+    materiality: {measure: "-FCF / BS_TOTAL_ASSETS * 100", high: ">= 2", medium: ">= 0.5"}
+    facts: [FCF, CF_OPERATING, CAPEX, capex_to_depreciation]
+    question: "Is negative free cash flow a build-up for growth (capex that will earn), or a funding gap that borrowing is filling?"
+    why: "Negative free cash flow has to be financed by debt, cash or equity; the source tells whether it is growth or strain."
+    hypotheses:
+      - {h: "Expansion capex ahead of revenue", confirm: "capex far above depreciation and assets under construction rising", rule_out: "capex near depreciation"}
+      - {h: "Weak operating cash", confirm: "CFO low against profit (see D-01)", rule_out: "CFO healthy"}
+    who_answers: management
+    docs_needed: ["capital commitments note", "capex plan"]
+  - id: D-03
+    section: D
+    title: Dividends exceed free cash flow
+    kind: numeric
+    trigger: "dividend_to_fcf > 100 and FCF > 0"
+    type: risk
+    materiality: {measure: "(-CF_DIVIDENDS_PAID - FCF) / BS_TOTAL_ASSETS * 100", high: ">= 2", medium: ">= 0.5"}
+    facts: [dividend_to_fcf, CF_DIVIDENDS_PAID, FCF, net_debt_to_ebitda]
+    question: "How was the dividend above free cash flow funded: cash on hand, new borrowing, or asset sales?"
+    why: "A dividend not covered by free cash flow is sustainable only while funding stays available."
+    hypotheses:
+      - {h: "Funded by new borrowing", confirm: "loans obtained in the financing section rose in the same year", rule_out: "cash balance fell instead"}
+    who_answers: management
+    docs_needed: ["dividend policy", "financing section"]
+  - id: D-04
+    section: D
+    title: Capex far above depreciation
+    kind: numeric
+    trigger: "capex_to_depreciation >= 3"
+    type: trend
+    materiality: {measure: "CAPEX / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
+    facts: [capex_to_depreciation, CAPEX, CF_DEPRECIATION_AMORTISATION, capex_to_revenue]
+    question: "What is the capex programme (capacity, timing, funding) and when does it start earning?"
+    why: "Spending well above depreciation is growth investment, and it also carries delivery, cost-overrun and funding risk."
+    hypotheses:
+      - {h: "Capacity expansion under way", confirm: "capital commitments and work-in-progress rising", rule_out: "capex is catch-up after devaluation-inflated replacement cost"}
+    who_answers: management
+    docs_needed: ["PPE note", "capital commitments"]
+  - id: D-05
+    section: D
+    title: Cash conversion cycle shortened sharply because of payables
+    kind: numeric
+    trigger: "dpo - dpo_prev >= 60"
+    type: risk
+    materiality: {measure: "abs(BS_TRADE_PAYABLES - prior(BS_TRADE_PAYABLES)) / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
+    facts: [dpo, dpo_prev, BS_TRADE_PAYABLES, payables_growth_gap]
+    question: "Is the longer payment period agreed supplier terms, or suppliers being stretched?"
+    why: "Cash conversion can look better because suppliers wait longer. That is borrowing from suppliers and can reverse (agent instructions 9D)."
+    hypotheses:
+      - {h: "Stretched suppliers", confirm: "payables grew much faster than cost of sales; supplier-finance or LC balances rose", rule_out: "terms formally extended and disclosed"}
+      - {h: "Payables inflated by FX on foreign-currency suppliers", confirm: "payables include FX-denominated balances revalued after devaluation", rule_out: "balances are naira"}
+    who_answers: management
+    docs_needed: ["trade payables note"]
+  - id: H-01
+    section: H
+    title: Net debt high against EBITDA
+    kind: numeric
+    trigger: "net_debt_to_ebitda >= 2.5"
+    type: risk
+    materiality: {measure: "NET_DEBT / BS_TOTAL_ASSETS * 100", high: ">= 15", medium: ">= 5"}
+    facts: [net_debt_to_ebitda, NET_DEBT, EBITDA, ebitda_interest_cover]
+    question: "What are the repayment dates and currency of the debt, and what covenants apply?"
+    why: "High leverage leaves little room if margins fall or the naira weakens on foreign-currency debt."
+    hypotheses:
+      - {h: "Debt largely foreign-currency", confirm: "currency split in the borrowings note", rule_out: "naira-denominated"}
+    who_answers: management
+    docs_needed: ["borrowings note"]
+  - id: H-02
+    section: H
+    title: Leverage rose sharply
+    kind: numeric
+    trigger: "debt_to_equity - debt_to_equity_prev >= 0.5"
+    type: risk
+    materiality: {measure: "(DEBT_GROSS - prior(DEBT_GROSS)) / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
+    facts: [debt_to_equity, debt_to_equity_prev, DEBT_GROSS, CF_LOANS_OBTAINED]
+    question: "What was the new debt used for, and how will it be serviced?"
+    why: "A step-up in debt is only benign if it funds assets that earn more than the cost of debt."
+    hypotheses:
+      - {h: "Debt funded capex", confirm: "capex and loans obtained both rose", rule_out: "debt funded dividends or working capital"}
+    who_answers: management
+    docs_needed: ["financing section"]
+  - id: H-03
+    section: H
+    title: Acquisition in the year
+    kind: numeric
+    trigger: "has_acquisition > 0"
+    type: trend
+    materiality: {fixed: medium}
+    facts: [CF_ACQUISITIONS, BS_GOODWILL]
+    question: "What was bought, at what price, and how are results of the acquired business shown separately?"
+    why: "Acquisitions change the comparison base: growth is not like-for-like and goodwill and debt may have risen."
+    hypotheses:
+      - {h: "Growth in revenue and assets is partly purchased", confirm: "acquisition note shows acquired revenue and assets", rule_out: "outflow is for minority interests"}
+    who_answers: management
+    docs_needed: ["business combination note"]

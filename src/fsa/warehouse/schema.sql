@@ -224,3 +224,19 @@ CREATE TABLE IF NOT EXISTS forensic_scores (
     inputs        VARCHAR,
     rules_version VARCHAR
 );
+
+-- Dry-run output of the findings trigger rules (rules/findings/). A candidate is not a finding until written, quote-checked and reviewed.
+CREATE TABLE IF NOT EXISTS finding_candidates (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    rule_id       VARCHAR NOT NULL,
+    title         VARCHAR,
+    section       VARCHAR,
+    state         VARCHAR NOT NULL,      -- fired | not fired | not tested
+    materiality   VARCHAR,               -- high | medium | low | unrated
+    measure       DOUBLE,
+    reason        VARCHAR,               -- why not tested, or why unrated
+    facts         VARCHAR,               -- JSON: every input the trigger used
+    rules_version VARCHAR,
+    evaluated_at  TIMESTAMP DEFAULT current_timestamp
+);

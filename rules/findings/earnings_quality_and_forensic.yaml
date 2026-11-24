@@ -1,0 +1,129 @@
+# Sections F (earnings quality) and G (forensic, accounting and restatement). Draft v0.1.
+# Rule: a forensic score alone is at most MEDIUM; it is HIGH only when a growth-gap flag or the cash test agrees (decision 4).
+rules:
+  - id: F-01
+    section: F
+    title: Accruals large against assets
+    kind: numeric
+    trigger: "accruals_ratio >= 5"
+    type: risk
+    materiality: {measure: "accruals_ratio * BS_TOTAL_ASSETS / 100 / PL_PROFIT_BEFORE_TAX * 100", high: ">= 15", medium: ">= 5"}
+    facts: [accruals_ratio, PL_PROFIT_FOR_YEAR, CF_OPERATING, BS_TOTAL_ASSETS]
+    question: "Which non-cash items are in profit but not in operating cash flow?"
+    why: "Sloan (1996): earnings made of accruals rather than cash tend to be less persistent."
+    hypotheses:
+      - {h: "Non-cash gains in profit", confirm: "revaluation, FX or monetary-position gains", rule_out: "profit-to-cash gap explained by working capital timing"}
+    who_answers: management
+    docs_needed: ["cash flow reconciliation"]
+  - id: F-02
+    section: F
+    title: Large share of pre-tax profit from non-core items
+    kind: numeric
+    trigger: "abs(non_core_share_of_pretax_profit) >= 15"
+    type: risk
+    materiality: {measure: "abs(non_core_share_of_pretax_profit)", high: ">= 30", medium: ">= 15"}
+    facts: [non_core_share_of_pretax_profit, fx_share_of_operating_profit, biological_fv_share_of_operating_profit, monetary_position_share_of_pretax_profit]
+    question: "How much of profit is expected to recur?"
+    why: "Profit from revaluation, FX, monetary position or investments is different from profit from selling the product, and tends to reverse."
+    hypotheses:
+      - {h: "Profit boosted by revaluation or inflation-accounting gains", confirm: "monetary-position or fair-value line large", rule_out: "items small and offsetting"}
+    who_answers: management
+    docs_needed: ["income statement notes"]
+  - id: F-03
+    section: F
+    title: Plantation fair-value gains large in operating profit
+    kind: numeric
+    trigger: "biological_fv_share_of_operating_profit >= 15"
+    type: risk
+    materiality: {measure: "biological_fv_share_of_operating_profit", high: ">= 30", medium: ">= 15"}
+    facts: [biological_fv_share_of_operating_profit, PL_BIOLOGICAL_FV, CF_FAIR_VALUE_BIOLOGICAL]
+    question: "What price, yield and discount-rate assumptions drive the biological-asset valuation, and how sensitive is the gain to them?"
+    why: "Fair-value gains are unrealised and rest on judgement; a change in assumptions moves profit without any cash."
+    hypotheses:
+      - {h: "Gain driven by higher commodity price assumptions", confirm: "valuation note shows price assumption up", rule_out: "gain driven by volume"}
+    who_answers: management
+    docs_needed: ["biological assets note"]
+  - id: G-01
+    section: G
+    title: Beneish M-score above cut-off
+    kind: numeric
+    trigger: "beneish_m > -1.78"
+    type: risk
+    materiality: {fixed: medium, escalate_if: "flags_tripped >= 1"}
+    facts: [beneish_m, dsri, gmi, aqi, sgi, depi, sgai, lvgi, tata]
+    question: "Which of the eight indices drive the score and do they reflect the Nigerian price and exchange-rate environment or the business?"
+    why: "A published screen: scores above the cut-off look more like known manipulators. In high-inflation years several indices rise for macro reasons, so it is a reason to look, never a verdict."
+    hypotheses:
+      - {h: "Score driven by sales growth and accruals that have operating explanations", confirm: "operating explanation for the largest indices", rule_out: "indices near 1"}
+    who_answers: public sources
+    docs_needed: ["the driver indices"]
+  - id: G-02
+    section: G
+    title: Altman Z'' outside the safe zone
+    kind: numeric
+    trigger: "altman_z < 4.35"
+    type: risk
+    materiality: {fixed: medium, escalate_if: "current_ratio < 1 and interest_cover < 3"}
+    facts: [altman_z, altman_x1, altman_x2, altman_x3, altman_x4]
+    question: "Is the low score caused by liquidity, thin retained earnings, or leverage?"
+    why: "A statistical stress indicator. Zone names are Altman's; it is not a forecast of failure."
+    hypotheses:
+      - {h: "Low retained earnings from past losses or distributions", confirm: "X2 small", rule_out: "X2 healthy and X1 low"}
+    who_answers: public sources
+    docs_needed: ["balance sheet detail"]
+  - id: G-03
+    section: G
+    title: Receivables growing much faster than revenue
+    kind: numeric
+    trigger: "receivables_growth_gap > 10"
+    type: risk
+    materiality: {measure: "(BS_TRADE_RECEIVABLES - prior(BS_TRADE_RECEIVABLES) * PL_REVENUE / prior(PL_REVENUE)) / PL_PROFIT_BEFORE_TAX * 100", high: ">= 10", medium: ">= 3"}
+    facts: [receivables_growth_gap, BS_TRADE_RECEIVABLES, PL_REVENUE, dso, dso_prev]
+    question: "Why are receivables growing faster than sales: looser credit terms, slower collection, or revenue recognised early?"
+    why: "Receivables outgrowing sales is the classic first sign of aggressive revenue recognition or weaker credit quality (9B)."
+    hypotheses:
+      - {h: "Looser credit terms or a few large customers", confirm: "customer concentration and credit terms in notes", rule_out: "ageing and collections steady"}
+    who_answers: management
+    docs_needed: ["trade receivables ageing and ECL note"]
+  - id: G-04
+    section: G
+    title: Inventory growing much faster than cost of sales
+    kind: numeric
+    trigger: "inventory_growth_gap > 10"
+    type: risk
+    materiality: {measure: "(BS_INVENTORIES - prior(BS_INVENTORIES) * PL_COST_OF_SALES / prior(PL_COST_OF_SALES)) / PL_PROFIT_BEFORE_TAX * 100", high: ">= 10", medium: ">= 3"}
+    facts: [inventory_growth_gap, BS_INVENTORIES, dio, dio_prev]
+    question: "Is stock building deliberate (price hedging, supply security) or slow-moving product?"
+    why: "Stock growing faster than activity is either a hedge against inflation or product that is not selling (9C)."
+    hypotheses:
+      - {h: "Deliberate pre-buying ahead of price increases", confirm: "stated policy or imported inputs", rule_out: "slow sales and impairments elsewhere"}
+    who_answers: management
+    docs_needed: ["inventories note"]
+  - id: G-05
+    section: G
+    title: Prior-year figures restated
+    kind: numeric
+    trigger: "restated_lines > 0"
+    type: risk
+    materiality: {fixed: medium, escalate_if: "restated_lines >= 5"}
+    facts: [restated_lines]
+    question: "What caused the restatement and which statement lines does it touch?"
+    why: "Comparatives that differ from last year's filed figures need an explanation; restatements can reflect error correction or policy change."
+    hypotheses:
+      - {h: "Error correction or reclassification", confirm: "restatement note", rule_out: "rounding"}
+    who_answers: management
+    docs_needed: ["restatement note"]
+  - id: G-06
+    section: G
+    title: Prior-year figures were later restated
+    kind: numeric
+    trigger: "later_restated_lines > 0"
+    type: risk
+    materiality: {fixed: medium}
+    facts: [later_restated_lines]
+    question: "Do the restated figures change the picture the original statements gave?"
+    why: "This year's analysis uses the figures as first filed; a later restatement means those were revised."
+    hypotheses:
+      - {h: "Revision is immaterial", confirm: "restated values within 1% of originals", rule_out: "material differences"}
+    who_answers: management
+    docs_needed: ["next year's comparatives"]

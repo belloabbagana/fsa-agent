@@ -1,0 +1,101 @@
+# Sections I (macro exposure), J (trend) and K (peer comparison). Draft v0.1.
+# Peer rules need at least 2 peers and are always marked indicative; with so few peers they are never rated high (decision 3).
+rules:
+  - id: I-01
+    section: I
+    title: Translation reserve is a large part of equity
+    kind: numeric
+    trigger: "abs(translation_reserve_share_of_equity) >= 20"
+    type: risk
+    materiality: {measure: "abs(translation_reserve_share_of_equity)", high: ">= 40", medium: ">= 20"}
+    facts: [translation_reserve_share_of_equity, BS_CURRENCY_TRANSLATION_RESERVE, OCI_FX_TRANSLATION]
+    question: "How much of equity is exchange-rate translation of foreign operations, and what happens if the naira recovers?"
+    why: "A big translation reserve means reported equity depends on exchange rates rather than operating retention."
+    hypotheses:
+      - {h: "Foreign operations translated at a weaker naira", confirm: "reserve built up in devaluation years", rule_out: "reserve small in absolute terms"}
+    who_answers: public sources
+    docs_needed: ["foreign operations note"]
+  - id: I-02
+    section: I
+    title: Monetary-position result is a large part of pre-tax profit
+    kind: numeric
+    trigger: "abs(monetary_position_share_of_pretax_profit) >= 10"
+    type: risk
+    materiality: {measure: "abs(monetary_position_share_of_pretax_profit)", high: ">= 20", medium: ">= 10"}
+    facts: [monetary_position_share_of_pretax_profit, PL_MONETARY_POSITION]
+    question: "How is the inflation-accounting result calculated and is it expected to repeat?"
+    why: "Hyperinflation accounting gains or losses are not cash items and depend on the price index used."
+    hypotheses:
+      - {h: "Profit comparison distorted by inflation accounting", confirm: "monetary item gain large and non-cash", rule_out: "small relative to profit"}
+    who_answers: management
+    docs_needed: ["IAS 29 note"]
+  - id: I-03
+    section: I
+    title: FX gains or losses large in operating profit
+    kind: numeric
+    trigger: "abs(fx_share_of_operating_profit) >= 10"
+    type: risk
+    materiality: {measure: "abs(fx_share_of_operating_profit)", high: ">= 20", medium: ">= 10"}
+    facts: [fx_share_of_operating_profit, PL_FX_OPERATING]
+    question: "Which balances give rise to the FX result and is it realised?"
+    why: "FX in operating profit is a macro effect, not trading performance; it can swing with the naira."
+    hypotheses:
+      - {h: "Revaluation of foreign-currency payables or cash", confirm: "balances in foreign currency shown in notes", rule_out: "realised on settlement"}
+    who_answers: management
+    docs_needed: ["FX note"]
+  - id: J-01
+    section: J
+    title: Margin trend down for two years
+    kind: numeric
+    trigger: "ebitda_margin < ebitda_margin_prev and ebitda_margin_prev < ebitda_margin_prev2"
+    type: trend
+    materiality: {measure: "(ebitda_margin_prev2 - ebitda_margin) / 100 * PL_REVENUE / PL_PROFIT_BEFORE_TAX * 100", high: ">= 10", medium: ">= 3"}
+    facts: [ebitda_margin, ebitda_margin_prev, ebitda_margin_prev2]
+    question: "Is the decline structural (costs, competition) or temporary?"
+    why: "Two consecutive annual declines are a trend rather than noise."
+    hypotheses:
+      - {h: "Cost inflation not passed on", confirm: "gross margin falling too (B-01)", rule_out: "decline from mix or one-offs"}
+    who_answers: management
+    docs_needed: ["segment note"]
+  - id: J-02
+    section: J
+    title: Return on equity fell sharply
+    kind: numeric
+    trigger: "roe_prev - roe >= 10"
+    type: trend
+    materiality: {fixed: low, escalate_if: "roic < roic_prev"}
+    facts: [roe, roe_prev, roic, roic_prev, net_margin, asset_turnover]
+    question: "Is the fall due to margin, asset turnover, or leverage?"
+    why: "A DuPont split shows which lever moved."
+    hypotheses:
+      - {h: "Equity base grew faster than profit", confirm: "equity rose by translation or revaluation", rule_out: "profit fell"}
+    who_answers: public sources
+    docs_needed: ["equity statement"]
+  - id: K-01
+    section: K
+    title: Margin well below peers
+    kind: numeric
+    trigger: "ebitda_margin_cmp < ebitda_margin_peer_median - 10 and ebitda_margin_peer_n >= 2"
+    type: risk
+    materiality: {fixed: low}
+    facts: [ebitda_margin_cmp, ebitda_margin_peer_median, ebitda_margin_peer_min, ebitda_margin_peer_max]
+    question: "Why is the company's EBITDA margin more than 10 points below the peer median?"
+    why: "A persistent gap suggests cost position or mix disadvantage. Indicative only: few peers, and peers differ in business mix."
+    hypotheses:
+      - {h: "Different cost structure from peers", confirm: "peer set has different products", rule_out: "like-for-like peers"}
+    who_answers: public sources
+    docs_needed: ["peer filings"]
+  - id: K-02
+    section: K
+    title: Leverage well above peers
+    kind: numeric
+    trigger: "net_debt_to_equity_cmp > net_debt_to_equity_peer_max and net_debt_to_equity_peer_n >= 2"
+    type: risk
+    materiality: {fixed: low}
+    facts: [net_debt_to_equity_cmp, net_debt_to_equity_peer_median, net_debt_to_equity_peer_max]
+    question: "Why is leverage above every peer?"
+    why: "Highest in the group is a relative-risk marker. Indicative only: few peers."
+    hypotheses:
+      - {h: "Debt-funded expansion", confirm: "capex high (D-04)", rule_out: "peers hold cash instead"}
+    who_answers: public sources
+    docs_needed: ["borrowings note"]

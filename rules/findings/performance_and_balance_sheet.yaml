@@ -1,0 +1,161 @@
+# Sections B (performance) and C (balance sheet). Draft v0.1.
+rules:
+  - id: B-01
+    section: B
+    title: Gross margin fell
+    kind: numeric
+    trigger: "gross_margin_prev - gross_margin >= 3"
+    type: risk
+    materiality: {measure: "(gross_margin_prev - gross_margin) / 100 * PL_REVENUE / PL_PROFIT_BEFORE_TAX * 100", high: ">= 10", medium: ">= 3"}
+    facts: [gross_margin, gross_margin_prev, PL_REVENUE, PL_COST_OF_SALES]
+    question: "What drove the fall in gross margin: input costs, energy, imported materials, mix, or pricing that did not keep pace?"
+    why: "A margin falling 3 points or more is a first sign that costs are rising faster than prices, which is the usual way devaluation reaches the income statement."
+    hypotheses:
+      - {h: "Input and energy costs rose faster than selling prices", confirm: "cost of sales per unit up in the notes or results presentation; price increases lag", rule_out: "volumes and unit costs flat while mix changed"}
+      - {h: "Foreign-currency inputs repriced after devaluation", confirm: "imported share of cost of sales disclosed; margin falls in devaluation quarters", rule_out: "domestic inputs dominate"}
+      - {h: "Change in product mix", confirm: "segment or product revenue split moved to lower-margin lines", rule_out: "mix stable"}
+    who_answers: management
+    docs_needed: ["cost of sales note", "volume and price disclosure"]
+  - id: B-02
+    section: B
+    title: Operating margin flattered by gains outside trading
+    kind: numeric
+    trigger: "operating_margin - core_operating_margin >= 5"
+    type: risk
+    materiality: {measure: "abs(PL_FX_OPERATING + PL_BIOLOGICAL_FV + PL_OTHER_GAINS) / PL_PROFIT_BEFORE_TAX * 100", high: ">= 10", medium: ">= 3"}
+    facts: [operating_margin, core_operating_margin, PL_FX_OPERATING, PL_BIOLOGICAL_FV, PL_OTHER_GAINS, PL_OPERATING_PROFIT]
+    question: "How much of reported operating profit comes from FX, plantation revaluation and other gains rather than selling the product?"
+    why: "Reported operating profit includes items that are not trading performance; reported profit growth can overstate underlying improvement (agent instructions 4C)."
+    hypotheses:
+      - {h: "Unrealised revaluation or FX gains are a large part of operating profit", confirm: "non-cash gains in the cash flow statement reversed out of operating cash flow", rule_out: "gains are realised and recurring"}
+    who_answers: management
+    docs_needed: ["note on biological assets and FX", "other income note"]
+  - id: B-03
+    section: B
+    title: Profit grew much faster than operating profit
+    kind: numeric
+    trigger: "net_profit_growth - operating_profit_growth >= 25"
+    type: risk
+    materiality: {measure: "abs(PL_PROFIT_BEFORE_TAX - PL_OPERATING_PROFIT) / PL_PROFIT_BEFORE_TAX * 100", high: ">= 20", medium: ">= 8"}
+    facts: [net_profit_growth, operating_profit_growth, PL_FINANCE_COSTS, PL_FINANCE_INCOME, PL_MONETARY_POSITION, PL_INCOME_TAX]
+    question: "Which below-operating items (finance costs, inflation accounting, tax) explain profit growing so much faster than operating profit?"
+    why: "A wide gap means the headline profit story is driven by financing, FX or tax effects, not the business."
+    hypotheses:
+      - {h: "A prior-year FX or finance-cost loss did not repeat", confirm: "finance costs fell with FX losses in the prior year", rule_out: "finance costs unchanged"}
+      - {h: "Lower effective tax rate", confirm: "tax rate dropped between the years", rule_out: "tax rate stable"}
+    who_answers: public sources
+    docs_needed: ["finance costs note", "tax note"]
+  - id: B-04
+    section: B
+    title: Very high nominal revenue growth
+    kind: numeric
+    trigger: "revenue_growth >= 30"
+    type: trend
+    materiality: {fixed: low, escalate_if: "has_acquisition > 0 and revenue_growth >= 50"}
+    facts: [revenue_growth, PL_REVENUE, has_acquisition]
+    question: "How much of the growth is volume, how much price or devaluation, and how much an acquisition?"
+    why: "Nominal growth in Nigeria mixes volume, price, inflation, translation and acquisitions; only volume growth is real growth (agent instructions 13)."
+    hypotheses:
+      - {h: "Mostly price and inflation", confirm: "volume flat or down in the notes or presentation", rule_out: "volumes up by a similar percentage"}
+      - {h: "Acquired revenue", confirm: "acquisition in the cash flow statement or notes", rule_out: "no acquisition"}
+    who_answers: management
+    docs_needed: ["volume disclosure", "segment note", "CPI series (Macro Agent)"]
+  - id: B-05
+    section: B
+    title: Effective tax rate moved sharply
+    kind: numeric
+    trigger: "abs(effective_tax_rate - effective_tax_rate_prev) >= 8"
+    type: risk
+    materiality: {measure: "abs(effective_tax_rate - effective_tax_rate_prev)", high: ">= 12", medium: ">= 8"}
+    facts: [effective_tax_rate, effective_tax_rate_prev, PL_INCOME_TAX, PL_PROFIT_BEFORE_TAX]
+    question: "What caused the change in the effective tax rate, and will it persist?"
+    why: "A low rate may be temporary (credits, deferred tax); a jump up may reflect new taxes."
+    hypotheses:
+      - {h: "Deferred tax or one-off credits", confirm: "deferred tax movements in the tax note", rule_out: "current tax moved in line"}
+    who_answers: public sources
+    docs_needed: ["tax note"]
+  - id: C-01
+    section: C
+    title: Current liabilities exceed current assets
+    kind: numeric
+    trigger: "current_ratio < 1"
+    type: risk
+    materiality: {measure: "(BS_TOTAL_CURRENT_LIABILITIES - BS_TOTAL_CURRENT_ASSETS) / BS_TOTAL_ASSETS * 100", high: ">= 2", medium: ">= 0.5"}
+    facts: [current_ratio, BS_TOTAL_CURRENT_ASSETS, BS_TOTAL_CURRENT_LIABILITIES, BS_CASH]
+    question: "How is the short-term funding gap financed, and what is due when?"
+    why: "A current ratio below 1 is not itself a problem for some businesses (suppliers fund them) but it matters when short-term debt is large."
+    hypotheses:
+      - {h: "Supplier credit funds the business (normal for the sector)", confirm: "payables large against cost of sales and stable for years", rule_out: "short-term borrowings are the gap"}
+      - {h: "Refinancing dependence", confirm: "short-term debt large and rolled over", rule_out: "debt maturities spread out"}
+    who_answers: management
+    docs_needed: ["debt maturity note", "undrawn facilities"]
+  - id: C-02
+    section: C
+    title: Short-term borrowings are most of the debt
+    kind: numeric
+    trigger: "BS_BORROWINGS_C / DEBT_GROSS >= 0.6 and DEBT_GROSS > 0"
+    type: risk
+    materiality: {measure: "BS_BORROWINGS_C / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
+    facts: [BS_BORROWINGS_C, BS_BORROWINGS_NC, BS_BANK_OVERDRAFT, BS_CASH]
+    question: "What is the maturity and currency of the borrowings due within a year, and is refinancing arranged?"
+    why: "Most debt falling due within a year concentrates refinancing risk, in a country where foreign-currency availability can tighten suddenly."
+    hypotheses:
+      - {h: "Revolving or rolled-over working capital lines", confirm: "facilities renewed annually; overdraft use stable", rule_out: "term loans reclassified as current because of maturity or covenant"}
+    who_answers: management
+    docs_needed: ["borrowings note: maturity, currency, covenants"]
+  - id: C-03
+    section: C
+    title: Thin interest cover
+    kind: numeric
+    trigger: "interest_cover < 3"
+    type: risk
+    materiality: {measure: "-PL_FINANCE_COSTS / PL_OPERATING_PROFIT * 100", high: ">= 50", medium: ">= 30"}
+    facts: [interest_cover, PL_OPERATING_PROFIT, PL_FINANCE_COSTS, CF_INTEREST_PAID]
+    question: "How much of finance costs is interest on borrowings and how much is exchange loss?"
+    why: "Operating profit covered finance costs fewer than three times. Where finance costs include FX, cover is understated, so the split matters."
+    hypotheses:
+      - {h: "Finance costs include large FX losses on foreign-currency debt", confirm: "finance costs far above cash interest paid; FX loss in the finance cost note", rule_out: "finance costs close to interest paid"}
+    who_answers: management
+    docs_needed: ["finance costs note"]
+  - id: C-04
+    section: C
+    title: Large related-party receivable
+    kind: numeric
+    trigger: "BS_RELATED_PARTY_RECEIVABLES_NC / BS_TOTAL_ASSETS * 100 >= 2"
+    type: risk
+    materiality: {measure: "BS_RELATED_PARTY_RECEIVABLES_NC / BS_TOTAL_ASSETS * 100", high: ">= 10", medium: ">= 2"}
+    facts: [BS_RELATED_PARTY_RECEIVABLES_NC, BS_TOTAL_ASSETS, BS_TOTAL_EQUITY]
+    question: "Who owes the group this money, on what terms (interest, security, repayment dates), and has any been repaid or provided for?"
+    why: "Large loans to related parties carry conflict-of-interest and cash-extraction risk (agent instructions 9G)."
+    hypotheses:
+      - {h: "A group-treasury loan to the parent or affiliates, repayable", confirm: "interest charged and repayment dates in the related-party note", rule_out: "no terms and no repayment history"}
+    who_answers: management
+    docs_needed: ["related-party note"]
+  - id: C-05
+    section: C
+    title: Prepayments and other current assets are a large share of current assets
+    kind: numeric
+    trigger: "BS_PREPAYMENTS_OTHER_CA / BS_TOTAL_CURRENT_ASSETS >= 0.25"
+    type: risk
+    materiality: {measure: "BS_PREPAYMENTS_OTHER_CA / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
+    facts: [BS_PREPAYMENTS_OTHER_CA, BS_TOTAL_CURRENT_ASSETS]
+    question: "What is in this line (advances to suppliers, letters-of-credit margins, deposits) and when does it turn into inventory or cash?"
+    why: "A large catch-all current asset that is not cash or receivables can hide balances that are hard to recover or slow to convert."
+    hypotheses:
+      - {h: "Foreign-exchange related advances for imports", confirm: "note shows advances and LC margins", rule_out: "includes old or disputed balances"}
+    who_answers: management
+    docs_needed: ["prepayments and other current assets note"]
+  - id: C-06
+    section: C
+    title: Goodwill is a meaningful share of assets
+    kind: numeric
+    trigger: "BS_GOODWILL / BS_TOTAL_ASSETS * 100 >= 5"
+    type: risk
+    materiality: {measure: "BS_GOODWILL / BS_TOTAL_EQUITY * 100", high: ">= 25", medium: ">= 10"}
+    facts: [BS_GOODWILL, BS_TOTAL_ASSETS, BS_TOTAL_EQUITY]
+    question: "What assumptions support the goodwill (growth, discount rate, currency), and how close is the headroom?"
+    why: "Goodwill is only supported by future cash flows; an impairment would reduce profit and equity without touching cash."
+    hypotheses:
+      - {h: "Recent acquisition not yet tested for impairment under stress", confirm: "acquisition date within two years; sensitivity not disclosed", rule_out: "impairment test shows ample headroom"}
+    who_answers: management
+    docs_needed: ["goodwill impairment note"]

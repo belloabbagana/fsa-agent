@@ -18,6 +18,8 @@ from fsa.map.rules_mapper import propose as rule_propose
 from fsa.analyse import comps, forensic as fz
 from fsa.analyse import ratios as rat
 from fsa.classify import draft as gdraft
+from fsa.findings import records as frec
+from fsa.findings import triggers as trg
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
@@ -450,6 +452,32 @@ def cmd_forensic(args) -> None:
         print("\n".join(lines))
 
 
+def cmd_triggers(args) -> None:
+    chart, con, ratio_rules = load_chart(), connect(), rat.load_rules()
+    rules = trg.load_rules()
+    pairs = [(t, y) for t, ys in {"DANGCEM": (2023, 2024, 2025), "PRESCO": (2023, 2024, 2025)}.items() for y in ys] if args.ticker == "all" \
+        else [(args.ticker, int(args.fy.upper().replace("FY", "")))]
+    for ticker, fy in pairs:
+        res = trg.evaluate_rules(con, chart, ratio_rules, rules, ticker, fy)
+        trg.save(con, ticker, fy, res, "0.1-draft")
+        fired = [r for r in res if r["state"] == "fired"]
+        recs = frec.build_records(con, chart, ratio_rules, rules, res, ticker, fy)
+        out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "finding_candidates.json").write_text(json.dumps(recs, indent=2, default=str))
+        (out / "finding_candidates.md").write_text(frec.to_markdown(recs, ticker, fy))
+        order = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
+        print(f"\n== {ticker} FY{fy}: {len(fired)} fired, {sum(r['state']=='not fired' for r in res)} not fired, {sum(r['state']=='not tested' for r in res)} not tested (of {len(res)} rules)")
+        for r in sorted(fired, key=lambda r: order.get(r["materiality"], 9)):
+            m = f" ({r['measure']:.1f})" if r["measure"] is not None else ""
+            note = f"  [{r['reason']}]" if r["reason"] else ""
+            print(f"   {r['materiality'].upper():8} {r['rule_id']}  {r['title']}{m}{note}")
+        if args.untested:
+            for r in res:
+                if r["state"] == "not tested":
+                    print(f"   not tested {r['rule_id']}: {r['reason']}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -491,6 +519,8 @@ def main() -> None:
     cs.add_argument("ticker"); cs.add_argument("fy"); cs.add_argument("--show", action="store_true"); cs.set_defaults(func=cmd_comps_show)
     fo = sub.add_parser("forensic", help="Beneish M-score, Altman Z'' and red-flag tests for a company-year")
     fo.add_argument("ticker"); fo.add_argument("fy"); fo.add_argument("--show", action="store_true"); fo.set_defaults(func=cmd_forensic)
+    tr = sub.add_parser("triggers", help="Dry-run the findings trigger rules (use 'all' for the six core company-years)")
+    tr.add_argument("ticker"); tr.add_argument("fy", nargs="?", default=""); tr.add_argument("--untested", action="store_true"); tr.set_defaults(func=cmd_triggers)
     args = p.parse_args()
     args.func(args)
 
