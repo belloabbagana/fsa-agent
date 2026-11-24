@@ -14,7 +14,7 @@ from fsa.ingest.ngnmarket import sha256_of
 from fsa.map.chart import coverage, load_chart, validate_chart
 from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_check, parse_proposals, verify_model
 from fsa.map.rules_mapper import propose as rule_propose
-from fsa.map.validate_mapping import check_subtotals
+from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
 from fsa.warehouse.db import ROOT, connect
 
@@ -182,6 +182,13 @@ def cmd_map_lines(args) -> None:
     print(f"  arithmetic: {len(arith) - len(bad)} of {len(arith)} printed subtotals equal the sum of their mapped parts")
     for r in bad:
         print(f"    DIFFERS {r['code']}: printed {r['printed']:,.0f}, mapped parts add to {r['computed']:,.0f} (difference {r['difference']:,.0f})")
+    idn = check_identities(chart, {(p["statement"], p["seq"]): p["code"] for p in base if p["code"]},
+                           {(l["statement"], l["seq"]): l["value"] for l in lines})
+    if idn:
+        print(f"  identities: {sum(1 for r in idn if r['status'] == 'pass')} of {len(idn)} hold ({', '.join(r['name'] + ' vs ' + r['against'] for r in idn)})")
+        for r in idn:
+            if r["status"] != "pass":
+                print(f"    DIFFERS {r['name']}: printed {r['total']:,.0f}, parts add to {r['parts']:,.0f}")
 
     model_props, model_name, notes = None, None, []
     if args.model and args.model != "none":

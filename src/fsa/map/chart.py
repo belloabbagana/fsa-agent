@@ -51,6 +51,10 @@ def validate_chart(chart: dict) -> list[str]:
                     problems.append(f"{a['code']}: sum refers to unknown account {part}")
                 elif next(x for x in accounts if x["code"] == part).get("tags") and "memo" in next(x for x in accounts if x["code"] == part)["tags"]:
                     problems.append(f"{a['code']}: a memo account must not be in a sum ({part})")
+    for ident in chart.get("identities", []):
+        for code in [ident.get("total")] * (ident.get("total") is not None) + ident.get("total_any", []) + ident.get("parts", []):
+            if code not in codes:
+                problems.append(f"identity {ident.get('name')}: unknown account {code}")
     return problems
 
 

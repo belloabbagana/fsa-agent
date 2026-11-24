@@ -1,4 +1,4 @@
-# CHART OF ACCOUNTS: non-financial corporates (v0.1, drafted by Claude, APPROVED by Bello 24 Nov 2026)
+# CHART OF ACCOUNTS: non-financial corporates (v0.2, drafted by Claude, APPROVED by Bello 24 Nov 2026)
 #
 # What this is: one standard list of line items. Every printed line in an annual report gets mapped to ONE
 # account here (week 5, Haiku proposes, you approve). Once lines are standard, ratios, comps and findings
@@ -40,6 +40,11 @@
 #  8. THE PPE CASH-FLOW BUILD-UP lines (additions, suppliers' credit, change in prepayments) explain one printed
 #     line. They are mapped to CF_MEMO_PPE_BUILDUP and never added again.i dont understand
 #
+# ---- VERSION HISTORY ----
+#  v0.1  24 Nov 2026  first approved chart (118 accounts).
+#  v0.2  24 Nov 2026  added OCI_TCI_ATTRIB_OWNERS and OCI_TCI_ATTRIB_NCI (total comprehensive income split). Found when Haiku
+#                     refused to map the comprehensive-income attribution lines to the profit accounts; Bello approved the fix.
+#
 # ---- DECISION LOG (Bello, 24 Nov 2026; his own notes are in the lines above) ----
 #  1 SIGNS            DECIDED: as printed.
 #  2 MONETARY POSITION DECIDED: standardised view puts it below operating profit.
@@ -52,14 +57,20 @@
 #  7 GROUP vs COMPANY DECIDED: the analysis uses GROUP.
 #  8 PPE BUILD-UP     DECIDED: keep as memo lines that are never added into a total.
 #
-version: "0.1"
-status: approved_by_analyst   # all eight decisions confirmed 24 Nov 2026; later changes need a new version
+version: "0.2"
+status: approved_by_analyst   # v0.1: eight decisions confirmed 24 Nov 2026. v0.2: two accounts added, approved 24 Nov 2026. Later changes need a new version.
 sign_convention: as_printed
 statements:
   - profit_or_loss
   - other_comprehensive_income
   - financial_position
   - cash_flows
+
+# Arithmetic identities between accounts that are NOT part of a subtotal sum (checked against the printed totals).
+identities:
+  - {name: profit_attribution, total: PL_PROFIT_FOR_YEAR, parts: [PL_ATTRIB_OWNERS, PL_ATTRIB_NCI]}
+  # The second split is of TOTAL comprehensive income at Dangote but of OTHER comprehensive income only at Presco: either ties.
+  - {name: comprehensive_income_attribution, total_any: [OCI_TOTAL_COMPREHENSIVE, OCI_NET], parts: [OCI_TCI_ATTRIB_OWNERS, OCI_TCI_ATTRIB_NCI]}
 
 accounts:
   # ------------------------------------------------------------------ PROFIT OR LOSS
@@ -368,6 +379,24 @@ accounts:
       statement: other_comprehensive_income,
       sum: [PL_PROFIT_FOR_YEAR, OCI_NET],
       labels: ["Total comprehensive income for the year"],
+    }
+  - {
+      code: OCI_TCI_ATTRIB_OWNERS,
+      name: "Total comprehensive income attributable to owners",
+      kind: line,
+      statement: other_comprehensive_income,
+      what: "Share of TOTAL comprehensive income (profit plus other comprehensive income) belonging to the parent's shareholders.",
+      why: "The basis varies by company: Dangote splits total comprehensive income, Presco splits other comprehensive income only (the identity check reports which). Differs from owners' profit by their share of translation and pension swings. Dangote FY2025: owners' profit N1,002,847m but total comprehensive income N936,911m. Use for return measures that should include these effects.",
+      labels: ["Owners of the Company", "Owners of the parent"],
+    }
+  - {
+      code: OCI_TCI_ATTRIB_NCI,
+      name: "Total comprehensive income attributable to non-controlling interests",
+      kind: line,
+      statement: other_comprehensive_income,
+      what: "Share of total comprehensive income belonging to minority holders of subsidiaries.",
+      why: "Minority holders' share of translation differences can be large when foreign subsidiaries are partly owned.",
+      labels: ["Non-controlling Interests", "Non-controlling interest", "Non-controlling interests"],
     }
 
   # ------------------------------------------------------------------ FINANCIAL POSITION: ASSETS

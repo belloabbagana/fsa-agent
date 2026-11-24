@@ -41,3 +41,24 @@ def test_mapped_lines_must_add_up_to_the_printed_subtotal():
     assert bad[0]["status"] == "differs" and bad[0]["difference"] == 10.0
     wrong = {**mapping, ("pl", 2): "PL_ADMIN_EXPENSES"}        # cost of sales mapped to the wrong account...
     assert check_subtotals(CHART, wrong, {("pl", 1): 100.0, ("pl", 2): -40.0, ("pl", 3): 60.0})[0]["status"] == "differs"  # ...breaks gross profit
+
+
+def test_attribution_identity_must_add_up():
+    from fsa.map.validate_mapping import check_identities
+    m = {("p", 1): "PL_PROFIT_FOR_YEAR", ("p", 2): "PL_ATTRIB_OWNERS", ("p", 3): "PL_ATTRIB_NCI"}
+    ok = check_identities(CHART, m, {("p", 1): 100.0, ("p", 2): 90.0, ("p", 3): 10.0})
+    assert ok and ok[0]["status"] == "pass"
+    bad = check_identities(CHART, m, {("p", 1): 100.0, ("p", 2): 90.0, ("p", 3): 20.0})
+    assert bad[0]["status"] == "differs"
+    assert check_identities(CHART, {("p", 1): "PL_PROFIT_FOR_YEAR"}, {("p", 1): 100.0}) == []   # nothing to test: not a pass, not a fail
+
+
+def test_attribution_split_may_tie_to_either_total():
+    from fsa.map.validate_mapping import check_identities
+    # Presco style: the split is of OTHER comprehensive income only
+    m = {("p", 1): "OCI_TOTAL_COMPREHENSIVE", ("p", 2): "OCI_NET", ("p", 3): "OCI_TCI_ATTRIB_OWNERS", ("p", 4): "OCI_TCI_ATTRIB_NCI"}
+    v = {("p", 1): 160.0, ("p", 2): 40.0, ("p", 3): 40.0, ("p", 4): 0.0}
+    r = check_identities(CHART, m, v)[0]
+    assert r["status"] == "pass" and r["against"] == "OCI_NET"
+    r2 = check_identities(CHART, m, {**v, ("p", 3): 55.0})[0]       # ties to neither: reported
+    assert r2["status"] == "differs"

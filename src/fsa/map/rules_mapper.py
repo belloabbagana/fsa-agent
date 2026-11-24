@@ -19,6 +19,23 @@ def _side(section: str) -> str | None:
     return None
 
 
+def _is_oci_context(ln) -> bool:
+    """A line sits in the comprehensive-income part when its page is the OCI page or its heading says so."""
+    return ln["statement"] == "comprehensive_income" or "comprehensive" in norm_label(ln["section"])
+
+
+def _split_by_statement(chart: dict, codes: list, ln: dict):
+    """Same label, one account in profit or loss and one in OCI (e.g. 'Owners of the Company'): context decides."""
+    kinds = {a["code"]: a["statement"] for a in chart["accounts"] if a["code"] in codes}
+    pl = [c for c in codes if kinds[c] == "profit_or_loss"]
+    oci = [c for c in codes if kinds[c] == "other_comprehensive_income"]
+    if len(pl) == 1 and len(oci) == 1 and len(codes) == 2:
+        if _is_oci_context(ln):
+            return oci[0], "same label as the profit split; this line sits in the comprehensive-income part"
+        return pl[0], "same label as the comprehensive-income split; this line sits in the profit part"
+    return None
+
+
 def propose(chart: dict, lines) -> list[dict]:
     """lines: iterable of dicts {statement, seq, section, label}. Returns one proposal per line."""
     idx = label_index(chart)
@@ -33,6 +50,9 @@ def propose(chart: dict, lines) -> list[dict]:
             prop["reason"] = "no printed label (unlabelled subtotal)"
         elif len(codes) == 1:
             prop.update(code=codes[0], confidence="exact", reason="label matches the chart")
+        elif len(codes) > 1 and _split_by_statement(chart, codes, ln):
+            code, why = _split_by_statement(chart, codes, ln)
+            prop.update(code=code, confidence="section", reason=why)
         elif len(codes) > 1:
             side = _side(ln["section"])
             pick = [c for c in codes if side and c.endswith("_" + side)]

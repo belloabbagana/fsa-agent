@@ -49,3 +49,29 @@ def check_subtotals(chart, mapping: dict, values: dict, tol: float = 2.0) -> lis
         rows.append({"code": code, "name": accts[code]["name"], "printed": p, "computed": c, "difference": p - c,
                      "status": "pass" if abs(p - c) <= tol else "differs"})
     return rows
+
+
+def check_identities(chart, mapping: dict, values: dict, tol: float = 2.0) -> list[dict]:
+    """The chart's own identities, e.g. profit for the year = owners' share + minority share."""
+    accts = _by_code(chart)
+    totals = account_totals(chart, mapping, values)
+    printed: dict = {}
+    for key in sorted(mapping, key=lambda k: (k[0], k[1])):
+        code = mapping[key]
+        if code in accts and code not in printed and values.get(key) is not None:
+            printed.setdefault(code, 0.0)
+            printed[code] = values[key] if accts[code]["kind"] == "subtotal" else printed[code] + values[key]
+    rows = []
+    for ident in chart.get("identities", []):
+        options = [ident["total"]] if "total" in ident else ident["total_any"]
+        if any(p not in totals for p in ident["parts"]):
+            continue                                   # the filing does not print the split: nothing to test
+        s = sum(totals[p] for p in ident["parts"])
+        hits = [(t, printed[t]) for t in options if t in printed]
+        if not hits:
+            continue
+        match = next(((t, v) for t, v in hits if abs(v - s) <= tol), None)
+        t, val = match or hits[0]
+        rows.append({"name": ident["name"], "total": val, "parts": s, "difference": val - s, "against": t,
+                     "status": "pass" if match else "differs"})
+    return rows

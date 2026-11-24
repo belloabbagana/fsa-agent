@@ -31,3 +31,11 @@ def test_unknown_and_unlabelled_lines_get_no_code():
 def test_ambiguous_without_a_section_is_not_guessed():
     p = one("financial_position", "Equity", "Borrowings")
     assert p["code"] is None and "ambiguous" in p["reason"]
+
+
+def test_attribution_lines_are_split_by_where_they_sit():
+    # same label, two different accounts: the profit split vs the total-comprehensive-income split
+    assert one("profit_or_loss", "Profit for the year attributable to:", "Owners of the Company")["code"] == "PL_ATTRIB_OWNERS"
+    assert one("comprehensive_income", "Total comprehensive income attributable to:", "Owners of the Company")["code"] == "OCI_TCI_ATTRIB_OWNERS"
+    assert one("profit_or_loss", "Other comprehensive income attributable to:", "Non-controlling interest")["code"] == "OCI_TCI_ATTRIB_NCI"
+    assert one("profit_or_loss", "Profit for the year attributable to:", "Non-controlling interest")["code"] == "PL_ATTRIB_NCI"
