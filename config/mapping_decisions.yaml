@@ -1,0 +1,24 @@
+# ANALYST DECISIONS on printed lines where the rule mapper and the model disagreed (or the rule had no answer).
+# One decision settles a label for EVERY company and year. The mapper uses only decisions marked "approved".
+# status: proposed = Claude's recommendation, waiting for Bello.   approved = Bello's decision (change the word to approve).
+# A decision matches on the printed label (spacing and broken ligatures ignored) and the statement it sits in
+# (profit_or_loss and comprehensive_income count as one: "profit_part").
+decisions:
+  - {statement: cash_flows, label: "Change in non-current prepayments", code: CF_MEMO_PPE_BUILDUP, status: proposed,
+     reason: "Explains the capex line above it (chart decision 8). Haiku left it unmapped, which is harmless to totals, but the memo account is the right home."}
+  - {statement: cash_flows, label: "Suppliers' credit unpaid", code: CF_MEMO_PPE_BUILDUP, status: proposed,
+     reason: "Part of the capex build-up (decision 8). Haiku once read it as a payables movement; that would double count."}
+  - {statement: cash_flows, label: "Net suppliers’ credit repaid", code: CF_MEMO_PPE_BUILDUP, status: proposed,
+     reason: "Same line as above, as Dangote worded it in FY2023."}
+  - {statement: cash_flows, label: "Disbursements to subsidiaries", code: CF_RELATED_PARTY_LOANS, status: proposed,
+     reason: "Lending to subsidiaries is related-party lending (chart decision 6), not an acquisition. Haiku read it as an acquisition."}
+  - {statement: cash_flows, label: "Status bar Dividend 32.4a", code: CF_DIVIDENDS_PAID, status: proposed,
+     reason: "A dividend-related cash payment. Haiku left it unmapped, which breaks the financing total."}
+  - {statement: cash_flows, label: "Unclaimed dividend invested 32.4a", code: CF_DIVIDENDS_PAID, status: proposed,
+     reason: "Dividend-related cash movement. Haiku left it unmapped, which breaks the financing total."}
+  - {statement: cash_flows, label: "PPE Transfer to Inventory / write off", code: CF_IMPAIRMENT_WRITEOFF, status: proposed,
+     reason: "Judgement call (no total changes). It is a write-off of property, plant and equipment, so I lean to Haiku's choice over 'other non-cash'."}
+  - {statement: cash_flows, label: "PPE Transfer to Inventory /write off less depreciation", code: CF_IMPAIRMENT_WRITEOFF, status: proposed,
+     reason: "Same line as above, as Presco worded it in FY2024."}
+  - {statement: cash_flows, label: "Amortisation of government grant", code: CF_PROVISIONS_BENEFITS, status: proposed,
+     reason: "Judgement call (no total changes). A grant is deferred income, and the chart groups deferred income with provisions and benefits, so I lean to Haiku's choice."}

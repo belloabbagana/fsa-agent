@@ -1,0 +1,3 @@
+# Sign-off of each company-year's line mapping by the analyst (Bello). A company-year is "approved" only when it is listed
+# here AND has no open lines. Add an entry like:   DANGCEM: {FY2025: {approved_by: Bello, date: 2026-11-24}}
+signoff: {}

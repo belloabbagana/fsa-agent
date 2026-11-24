@@ -13,7 +13,9 @@ from fsa.ingest.ngnmarket import load_export
 from fsa.ingest.ngnmarket import sha256_of
 from fsa.map.chart import coverage, load_chart, validate_chart
 from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_check, parse_proposals, verify_model
+from fsa.map.finalize import finalize, load_decisions, signed_off
 from fsa.map.rules_mapper import propose as rule_propose
+from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
 from fsa.warehouse.db import ROOT, connect
@@ -258,6 +260,59 @@ def cmd_map_lines(args) -> None:
             print(f"    DISAGREE [{p['statement']}] {p['label'][:40]!r}: rule={p['code']} {args.model}={m['code']}")
     print(f"\nReview sheet: {out_dir / 'mapping_review.md'}")
 
+def cmd_finalize_mapping(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    chart, con = load_chart(), connect()
+    lines = _load_group_lines(con, ticker, fy)
+    def codes(proposer):
+        rows = con.execute("SELECT statement, seq, code FROM line_mappings WHERE ticker=? AND fiscal_year=? AND proposer=?", [ticker, fy, proposer]).fetchall()
+        return {(a, b): c for a, b, c in rows} if rows else None
+    rule, model = codes("rule"), codes("haiku")
+    if rule is None:
+        raise SystemExit("Run map-lines first (no rule proposals stored).")
+    final = finalize(chart, lines, rule, model, load_decisions())
+    con.execute("DELETE FROM mapping_final WHERE ticker=? AND fiscal_year=?", [ticker, fy])
+    for r in final:
+        con.execute("INSERT INTO mapping_final VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    [ticker, fy, r["statement"], r["seq"], r["label"], r["code"], r["basis"], r["status"], r["rule_code"], r["model_code"], r["note"]])
+    from collections import Counter
+    basis = Counter(r["basis"] for r in final)
+    open_rows = [r for r in final if r["status"] == "open"]
+    print(f"{ticker} FY{fy}: {len(final)} lines. " + ", ".join(f"{k} {v}" for k, v in sorted(basis.items())))
+    arith = _arith(chart, lines, [{"statement": r["statement"], "seq": r["seq"], "code": r["code"]} for r in final if r["code"]])
+    bad = [r for r in arith if r["status"] != "pass"]
+    print(f"  arithmetic on the settled mapping: {len(arith) - len(bad)} of {len(arith)} printed subtotals reproduced")
+    for r in bad:
+        print(f"    differs: {r['name']} (printed {r['printed']:,.0f}, standardised {r['computed']:,.0f})")
+    print(f"  open lines: {len(open_rows)}")
+    for r in open_rows:
+        print(f"    OPEN [{r['statement']}] {r['label'][:44]!r}: rule={r['rule_code']} model={r['model_code']} {r['note']}")
+    so = signed_off(ticker, fy)
+    print("  sign-off: " + (f"approved by {so.get('approved_by')} on {so.get('date')}" if so and not open_rows else
+                           ("signed in config but lines are still open: NOT approved" if so else "not yet signed off by the analyst")))
+
+
+def cmd_disclosures(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    chart, con = load_chart(), connect()
+    items = disc.generate(con, chart, ticker, fy)
+    disc.save(con, ticker, fy, items)
+    out_dir = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "disclosures.md").write_text(disc.to_markdown(ticker, fy, items))
+    (out_dir / "disclosures.json").write_text(json.dumps(items, indent=2, ensure_ascii=False))
+    from collections import Counter
+    print(f"{ticker} FY{fy}: {len(items)} notes " + str(dict(Counter(i['severity'] for i in items))))
+    if args.show:
+        print(disc.to_markdown(ticker, fy, items))
+
+
+def cmd_decisions(args) -> None:
+    con = connect()
+    for d in load_decisions():
+        n = con.execute("""SELECT count(*) FROM mapping_final f WHERE f.label IS NOT NULL AND lower(replace(f.label,' ','')) LIKE '%' || lower(replace(?, ' ', '')) || '%'""", [d["label"][:20]]).fetchone()[0]
+        print(f"[{d['status']:8s}] {d['label']!r} -> {d['code']}   (seen on ~{n} line(s))\n           {d['reason']}")
+
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
@@ -282,6 +337,12 @@ def main() -> None:
     ml.add_argument("fy", help="e.g. FY2025")
     ml.add_argument("--model", default="none", help="haiku to also ask the model (needs the one-time sign-in); default: rules only")
     ml.set_defaults(func=cmd_map_lines)
+    fm = sub.add_parser("finalize-mapping", help="Settle each line's code from rules, model and the analyst's decisions")
+    fm.add_argument("ticker"); fm.add_argument("fy"); fm.set_defaults(func=cmd_finalize_mapping)
+    dc = sub.add_parser("disclosures", help="Generate the report's data notes and disclaimers for a company-year")
+    dc.add_argument("ticker"); dc.add_argument("fy"); dc.add_argument("--show", action="store_true"); dc.set_defaults(func=cmd_disclosures)
+    dd = sub.add_parser("decisions", help="List the analyst decisions on mapping and their status")
+    dd.set_defaults(func=cmd_decisions)
     args = p.parse_args()
     args.func(args)
 

@@ -135,3 +135,30 @@ CREATE TABLE IF NOT EXISTS line_mappings (
     model_used    VARCHAR,               -- the model that actually answered (from the usage report), never the one requested
     proposed_at   TIMESTAMP DEFAULT current_timestamp
 );
+
+-- The line mapping we actually use, and how each line got its code.
+CREATE TABLE IF NOT EXISTS mapping_final (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    statement     VARCHAR NOT NULL,
+    seq           INTEGER NOT NULL,
+    label         VARCHAR,
+    code          VARCHAR,
+    basis         VARCHAR NOT NULL,      -- analyst_decision | agreed | rule_only | model_accepted | rule_disputed | open
+    status        VARCHAR NOT NULL,      -- settled | open
+    rule_code     VARCHAR,
+    model_code    VARCHAR,
+    note          VARCHAR
+);
+
+-- Everything a reader of the report should be told about the data: restatements, differences, gaps, basis of preparation.
+CREATE TABLE IF NOT EXISTS report_disclosures (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    seq           INTEGER NOT NULL,
+    category      VARCHAR NOT NULL,
+    severity      VARCHAR NOT NULL,      -- standard | note | important
+    text          VARCHAR NOT NULL,
+    source_ref    VARCHAR,
+    generated_at  TIMESTAMP DEFAULT current_timestamp
+);
