@@ -1,4 +1,4 @@
-# GICS CLASSIFICATION per company: DRAFT by a model, for Bello to approve (status: proposed -> approved).
+# GICS CLASSIFICATION per company: DRAFT by a model, for Bello to approve (status: approved -> approved).
 # Sector, industry group and industry names are checked by code against the GICS list; sub-industry is as drafted (unchecked).
 # Peer comparisons use the INDUSTRY level (and sub-industry where it changes the analysis). Only approved rows are used.
 # To approve: change status to approved and set approved_by. To change a classification: edit it, then approve.
@@ -14,8 +14,8 @@ gics:
     reason: Produces and sells cement and related building materials, mainly in Nigeria and across West and Central Africa.
     exchange_label: INDUSTRIAL GOODS / Building Materials
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   PRESCO:
     name: Presco Plc
     sector: Consumer Staples
@@ -27,8 +27,8 @@ gics:
     reason: Operates oil palm plantations and produces palm oil and related agricultural products in Nigeria.
     exchange_label: AGRICULTURE / Crop Production
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   BUACEMENT:
     name: BUA Cement Plc
     sector: Materials
@@ -40,8 +40,8 @@ gics:
     reason: Manufactures and sells cement and building materials in Nigeria.
     exchange_label: INDUSTRIAL GOODS / Building Materials
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   HBMNG:
     name: HBM Nigeria Plc
     sector: Materials
@@ -54,8 +54,8 @@ gics:
     claude_review: "HBM Nigeria Plc is the renamed Lafarge Africa Plc (formerly WAPCO), a cement and aggregates producer now owned by China's Huaxin; confirmed from public sources during data collection (name change after the August 2025 acquisition). The model could not recognise the new name; Construction Materials is right, so confidence can be treated as high."
     exchange_label: INDUSTRIAL GOODS / Building Materials
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   OKOMUOIL:
     name: The Okomu Oil Palm Company Plc
     sector: Consumer Staples
@@ -67,8 +67,8 @@ gics:
     reason: Cultivates oil palm plantations and processes crude palm oil and kernels in Nigeria.
     exchange_label: AGRICULTURE / Crop Production
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   ELLAHLAKES:
     name: Ellah Lakes Plc
     sector: Consumer Staples
@@ -81,8 +81,8 @@ gics:
     claude_review: "NOT VERIFIED. The model described it from its name and exchange label. Its business mix (farming, processing) should be checked in its filings before approving the sub-industry."
     exchange_label: AGRICULTURE / Crop Production
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   FTNCOCOA:
     name: FTN Cocoa Processors Plc
     sector: Consumer Staples
@@ -95,8 +95,8 @@ gics:
     claude_review: "JUDGEMENT CALL. It turns cocoa beans into cocoa butter, cake and powder, which is primary processing of an agricultural commodity (like oilseed crushers, classed Agricultural Products & Services), but a chocolate-ingredients view would put it in Packaged Foods & Meats. No total or ratio depends on this; it only decides which peers it is compared with."
     exchange_label: AGRICULTURE / Crop Production
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
   ZICHIS:
     name: Zichis Agro Allied Industries Plc
     sector: Consumer Staples
@@ -109,5 +109,5 @@ gics:
     claude_review: "NOT VERIFIED. The model inferred this from the company name and exchange label only, and Zichis has just two years of history in our data (listed 2024), so it is a weak peer. Check the business description before approving."
     exchange_label: AGRICULTURE / Crop Production
     proposed_by: claude-haiku-5-5
-    status: proposed
-    approved_by: null
+    status: approved
+    approved_by: Bello (24 Nov 2026)
