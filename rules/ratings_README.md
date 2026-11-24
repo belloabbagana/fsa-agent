@@ -11,9 +11,9 @@ A CFA reader should see why a rating is what it is. "Weak" because two of four p
 3. **Persistent test.** Critical cash generation needs negative operating cash flow two years running.
 4. **Earnings quality points.** Twelve tests, one point each, severe versions earn a second. Levels at 1, 3, 5 and 7 points. Check against your sense of a company you know well.
 5. **Growth-gap flags in devaluation years.** Receivables, inventory and payables gaps move with the naira; three flags together add a point but do not decide alone.
-6. **Red cannot be assigned yet.** It needs the auditor's report read by code (rules A-01 to A-05). Until then the highest forensic rating is Orange, and the report says so.
+6. **Red now needs the auditor's report.** Code reads it (`./fsa read-auditor-report`): Red is assigned only when the opinion is qualified, adverse or a disclaimer, or a going-concern material-uncertainty section exists. If the report was not read or could not be classified, the highest rating is Orange and the report says so.
 7. **Data quality.** Low only for unapproved or unmapped lines, many subtotal failures or damaged text; Moderate for restatements or provider disagreement.
 8. **Conclusion category.** Uses three trend measures, with a 10% tolerance.
 
 ## Not built yet
-The engine that applies this file, the `data_quality` inputs (open mapping lines, subtotals not reproduced, damaged text, provider differences, unchecked peers), the `auditor_adverse` input and the trend counts. Next step: build the engine, run it on all six company-years, and show you the outcomes so you can judge the thresholds.
+The notes to the accounts are not read yet, so rule A-05 (restatement, prior-period error, policy change in the notes) stays NOT TESTED.

@@ -1,4 +1,5 @@
-# Text rules: search the auditor's report and notes. NOT TESTED yet: the engine cannot read these sections.
+# Text rules: search the auditor's report and notes. A-01 to A-04 are tested from the auditor's report, read by code (./fsa read-auditor-report).
+# A-05 (the notes) is NOT TESTED yet: the engine does not read the notes.
 # Each match must quote the passage; code verifies the quote exists in the PDF before the finding is kept.
 rules:
   - id: A-01

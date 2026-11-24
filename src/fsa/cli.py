@@ -511,6 +511,38 @@ def cmd_write_findings(args) -> None:
     print(f"wrote {out / 'findings.md'}")
 
 
+def cmd_read_auditor_report(args) -> None:
+    from fsa.extract import auditor_report as aud
+    cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
+    targets = [(c["ticker"], fy) for c in cfg["companies"] if c.get("role") == "core" for fy in (2023, 2024, 2025)] if args.ticker == "all" else [(args.ticker, int(args.fy.upper().replace("FY", "")))]
+    model = args.model or yaml.safe_load((ROOT / "config" / "models.yaml").read_text())["read_auditor_report"]
+    for ticker, fy in targets:
+        pdf = ROOT / "data" / "raw" / ticker / f"FY{fy}" / f"{ticker}_FY{fy}_annual_report.pdf"
+        if not pdf.exists():
+            print(f"{ticker} FY{fy}: no annual report PDF at {pdf}")
+            continue
+        pages = aud.read_pages(pdf)
+        if not pages:
+            print(f"{ticker} FY{fy}: the auditor's report was not found in the PDF; nothing is recorded")
+            continue
+        out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+        old = out / "auditor_report.json"
+        rep = aud.analyse(pages)
+        if args.no_model:
+            prev = json.loads(old.read_text()) if old.exists() else None
+            if prev and prev["key_audit_matters"]["titles"]:
+                rep["key_audit_matters"]["titles"] = prev["key_audit_matters"]["titles"]
+        elif rep["key_audit_matters"]["section_present"]:
+            k = aud.kam_titles(rep, pages, model)
+            rep["key_audit_matters"].update(titles=k["titles"], titles_read_by=k["model"], titles_dropped_unverified=k["dropped_unverified"], titles_cost_usd=k["cost_usd"])
+        rep.pop("kam_text", None)
+        out.mkdir(parents=True, exist_ok=True)
+        old.write_text(json.dumps(rep, indent=2, ensure_ascii=False))
+        (out / "auditor_report.md").write_text(aud.to_markdown(rep, ticker, fy))
+        print(f"{ticker} FY{fy}: {rep['firm']} | opinion {rep['opinion']['type']} | going-concern section {rep['going_concern']['material_uncertainty_section']} | "
+              f"emphasis {len(rep['emphasis_of_matter'])} | other matter {len(rep['other_matter'])} | KAMs {len(rep['key_audit_matters']['titles'])} | pp.{rep['pages'][0]}-{rep['pages'][1]}")
+
+
 def cmd_ratings(args) -> None:
     chart, con, ratio_rules = load_chart(), connect(), rat.load_rules()
     cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
@@ -554,6 +586,7 @@ def cmd_review_findings(args) -> None:
     items = json.loads(path.read_text())
     levels = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
     todo = [f for f in items if f["status"] == "written" and levels.get(f["materiality"], 9) <= levels[args.min_materiality]
+            and not f.get("evidence")
             and (not args.ids or f["id"] in args.ids)
             and (args.redo or not f.get("review") or f["review"]["verdict"] == "not completed")]
     if args.limit:
@@ -615,6 +648,9 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
+    ra = sub.add_parser("read-auditor-report", help="Read the auditor's report from the annual-report PDF (opinion, going concern, emphasis, KAMs), quotes verified by code")
+    ra.add_argument("ticker"); ra.add_argument("fy", nargs="?", default="FY0"); ra.add_argument("--model", default=None); ra.add_argument("--no-model", action="store_true", help="skip the model that lists KAM titles")
+    ra.set_defaults(func=cmd_read_auditor_report)
     rg = sub.add_parser("ratings", help="Apply rules/ratings.yaml to a company-year (or `all` for the six core company-years)")
     rg.add_argument("ticker"); rg.add_argument("fy", nargs="?", default="FY0"); rg.set_defaults(func=cmd_ratings)
     rp = sub.add_parser("report", help="Assemble the Markdown and JSON report for a company-year from findings, scorecards and data notes")

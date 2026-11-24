@@ -56,8 +56,10 @@ def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int)
                 entry["source"] = "subtotal or total computed by code from the mapped lines"
             facts.append(entry)
         rec = {k: rule.get(k) for k in FIELDS}
+        if res.get("evidence"):
+            rec["evidence"] = res["evidence"]
         rec |= {"ticker": ticker, "fiscal_year": fy, "materiality": res["materiality"], "materiality_measure": res["measure"],
-                "materiality_note": res["reason"], "trigger": rule["trigger"], "facts": facts, "status": "candidate", "version": "0.1-draft",
+                "materiality_note": res["reason"], "trigger": rule.get("trigger") or "text rule: " + ", ".join(rule.get("search", [])), "facts": facts, "status": "candidate", "version": "0.1-draft",
                 "disclaimer": "An item to examine, not an accusation; educational analysis, not investment advice."}
         records.append(rec)
     order = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
@@ -70,6 +72,8 @@ def to_markdown(records: list[dict], ticker: str, fy: int) -> str:
         lines += [f"## {r['id']} · {r['title']} · {str(r['materiality']).upper()} · {r['type']}", "", f"**Trigger:** `{r['trigger']}`  "]
         if r["materiality_note"]:
             lines.append(f"**Materiality note:** {r['materiality_note']}  ")
+        for e in r.get("evidence", []):
+            lines.append(f"- evidence p.{e['page']} '{e['section']}': “{e['quote']}”")
         lines += ["", "**Facts**", ""]
         for f in r["facts"]:
             v = "n/a" if f["value"] is None else f"{f['value']:,.2f}"

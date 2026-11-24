@@ -79,6 +79,7 @@ def finding_record(f: dict) -> dict:
         "id": f["id"], "section": f["section"], "title": f["title"],
         "observation": f.get("observation") if written else None,
         "why_it_matters": f.get("why_it_matters") if written else None,
+        "evidence": f.get("evidence", []),
         "numbers": [{"name": x["name"], "value": x["value"], **({"unit": x["unit"]} if x.get("unit") else {}),
                      **({"sources": x["source"]} if x.get("source") else {})} for x in f["facts"]],
         "trigger": f["trigger"],
@@ -99,12 +100,13 @@ def build_report(con, chart, ratio_rules, company: dict, ticker: str, fy: int) -
                       key=lambda r: (ORDER.get(r["materiality"], 9), r["section"], r["id"]))
     notes = json.loads((base / "disclosures.json").read_text()) if (base / "disclosures.json").exists() else []
     ratings = json.loads((base / "ratings.json").read_text()) if (base / "ratings.json").exists() else None
+    auditor = json.loads((base / "auditor_report.json").read_text()) if (base / "auditor_report.json").exists() else None
     not_generated = {k: v for k, v in NOT_GENERATED.items() if ratings is None}
     return {
         "schema": "report.v1", "version": VERSION, "status": "draft", "generated_on": date.today().isoformat(),
         "ticker": ticker, "company": company["name"], "fiscal_year": fy, "amounts_unit": "N millions unless stated; nominal, Group",
         "disclaimer": "Educational analysis, not investment advice. Items are matters to examine, never accusations. No buy, sell or hold view is given.",
-        "not_generated": not_generated, "ratings": ratings, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
+        "not_generated": not_generated, "ratings": ratings, "auditor_report": auditor, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
         "findings": findings, "data_notes": notes,
         "inputs_missing": [name for name, ok in (("findings.json", (base / "findings.json").exists()), ("disclosures.json", (base / "disclosures.json").exists()), ("ratings.json", (base / "ratings.json").exists())) if not ok],
         "section_titles": layout["section_titles"],
@@ -139,6 +141,15 @@ def to_markdown(rep: dict) -> str:
     L += [f"## A. {titles['A']}", ""] + rating_lines + [
           f"- **Findings:** {len(rep['findings'])} items to examine: "
           + ", ".join(f"{sum(f['materiality'] == m for f in rep['findings'])} {m}" for m in ("high", "medium", "low")) + ".", ""]
+    ar = rep.get("auditor_report")
+    if ar:
+        k = ar["key_audit_matters"]
+        L += [f"- **Auditor ({ar['firm'] or 'firm not identified'}):** opinion {ar['opinion']['type']}"
+              + (f" (p.{ar['opinion']['page']})" if ar["opinion"]["page"] else "")
+              + f"; going-concern material uncertainty section: {'yes' if ar['going_concern']['material_uncertainty_section'] else 'none found'}; "
+              + f"{len(ar['emphasis_of_matter'])} emphasis-of-matter and {len(ar['other_matter'])} other-matter paragraph(s); key audit matters: "
+              + (", ".join(t["title"] for t in k["titles"]) if k["titles"] else ("section present" if k["section_present"] else "none found"))
+              + ("" if ar.get("signature_found") else ". The report's signature block was not found in the PDF text, so its end may be incomplete") + ".", ""]
     for letter in "BCDEFGHIJK":
         L += [f"## {letter}. {titles[letter]}", ""]
         if letter in rep["scorecards"]:
@@ -165,6 +176,7 @@ def to_markdown(rep: dict) -> str:
         L += [f"**Question ({f['who_answers']}).** {f['question']}", "", f"**Why I'm asking.** {f['why_i_am_asking']}", "", "**Hypotheses and evidence**", ""]
         L += [f"- {h['h']}  \n  confirmed by: {h['confirm']}; ruled out by: {h['rule_out']}" for h in f["hypotheses"]]
         L += ["", "**Figures and sources**", ""]
+        L += [f"- p.{e['page']} '{e['section']}': “{e['quote']}”" for e in f.get("evidence", [])]
         for n in f["numbers"]:
             ref = "; ".join(f"{s['statement']} p.{s['page']} '{s['label']}'" for s in n["sources"]) if isinstance(n.get("sources"), list) else (n.get("sources") or "")
             L.append(f"- {n['name']}: {'n/a' if n['value'] is None else show(n['value'])}" + (f" ({ref})" if ref else ""))

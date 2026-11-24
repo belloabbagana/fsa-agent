@@ -80,6 +80,11 @@ def parse(text: str) -> dict | None:
 
 def write_one(rec: dict, model: str) -> dict:
     """Returns the record with observation, why_it_matters, written_by and check results. Raises if a different model answered."""
+    if rec.get("evidence"):                       # text finding: the words are the auditor's own, quoted; code writes the frame, no model
+        shown = "; ".join(f"on page {e['page']}, under '{e['section']}': “{e['quote']}”" for e in rec["evidence"][:4])
+        more = f" ({len(rec['evidence']) - 4} more in the figures and sources list)" if len(rec["evidence"]) > 4 else ""
+        return rec | {"observation": f"In the auditor's report for {rec['ticker']} FY{rec['fiscal_year']}, {shown}{more}.", "why_it_matters": rec["why"],
+                      "written_by": ["code (quotes verified against the PDF text)"], "text_checks": "passed", "attempts": 0, "cost_usd": 0.0, "status": "written"}
     base = prompt_for(rec)
     prompt, problems, used, cost = base, [], set(), 0.0
     for attempt in (1, 2):
@@ -111,6 +116,7 @@ def to_markdown(items: list[dict], ticker: str, fy: int) -> str:
         lines += [f"**Question for management or public sources ({r['who_answers']}).** {r['question']}", "", "**Hypotheses and evidence**", ""]
         lines += [f"- {h['h']}  \n  would be confirmed by: {h['confirm']}; ruled out by: {h['rule_out']}" for h in r["hypotheses"]]
         lines += ["", "**Figures and sources**", ""]
+        lines += [f"- p.{e['page']} '{e['section']}': “{e['quote']}”" for e in r.get("evidence", [])]
         for f in r["facts"]:
             s = f.get("source")
             ref = "; ".join(f"{x['statement']} p.{x['page']} '{x['label']}'" for x in s) if isinstance(s, list) else (s or "")

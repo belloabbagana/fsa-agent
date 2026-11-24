@@ -9,6 +9,7 @@ import json
 import yaml
 
 from fsa.analyse.ratios import NotMeaningful
+from fsa.extract.auditor_report import red_flags
 from fsa.findings.triggers import TriggerEvaluator, build_context
 from fsa.map.finalize import signed_off
 from fsa.warehouse.db import ROOT
@@ -69,7 +70,7 @@ def quality_inputs(con, ticker: str, fy: int, company_cfg: dict) -> dict:
         "filing_arithmetic_notes": count("filing_arithmetic"), "pdf_quality_notes": count("pdf_quality"),
         "provider_differences": float(con.execute("SELECT count(*) FROM reconciliation WHERE ticker=? AND fiscal_year=? AND status='differs'", [ticker, fy]).fetchone()[0]),
         "peer_set_unchecked": float(any(p.get("conflict_check") != "pass" for p in peers)),
-        "auditor_adverse": None,          # needs the auditor's report read by code (rules A-01 to A-05): not built yet
+        "auditor_adverse": red_flags(json.loads((base / "auditor_report.json").read_text()) if (base / "auditor_report.json").exists() else None),
     }
 
 
@@ -111,7 +112,8 @@ def rate_company_year(con, chart, ratio_rules, company_cfg: dict, ticker: str, f
     fr = R["forensic_risk"]
     label, untested, _ = first_level(t, fr["levels"], "rating")
     out["forensic_risk"] = {"rating": label or "Not rated: insufficient data", "untested": untested, "note": fr["note_for_report"],
-                            "red_not_assignable": "The auditor's report is not read by code yet, so Red cannot be assigned." if fr["red_requires_auditor_tests"] else None}
+                            "red_not_assignable": "The auditor's report was not read or its opinion could not be classified, so Red cannot be assigned." if t.extra.get("auditor_adverse") is None else None,
+                            "auditor_report_read": t.extra.get("auditor_adverse") is not None}
 
     # 4. data quality
     label, untested, _ = first_level(t, R["data_quality"]["levels"], "grade")

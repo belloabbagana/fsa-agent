@@ -136,13 +136,46 @@ def rate(spec: dict, ev: TriggerEvaluator) -> tuple[str, float | None, str]:
     return "low", measure, ""
 
 
+def text_rule(rule: dict, rep: dict | None) -> dict:
+    """State and evidence for a text rule, from the auditor's report read by code. Every quote was verified against the PDF text when it was read.
+    Rules about the notes (A-05) stay NOT TESTED until the notes are read."""
+    if rule["id"] == "A-05":
+        return {"reason": "the engine does not read the notes yet"}
+    if rep is None:
+        return {"reason": "the auditor's report has not been read (run: ./fsa read-auditor-report)"}
+    op = rep["opinion"]
+    if rule["id"] == "A-01":
+        if op["type"] == "unclear":
+            return {"reason": "the opinion paragraph could not be classified by code"}
+        if op["type"] == "unmodified":
+            return {"state": "not fired"}
+        return {"state": "fired", "evidence": [{"section": "Opinion", "page": op["page"], "quote": op["quote"]}]}
+    if rule["id"] == "A-02":
+        gc = rep["going_concern"]
+        return {"state": "fired", "evidence": gc["evidence"]} if gc["material_uncertainty_section"] else {"state": "not fired"}
+    if rule["id"] == "A-03":
+        ev = rep["emphasis_of_matter"] + rep["other_matter"]
+        return {"state": "fired", "evidence": ev} if ev else {"state": "not fired"}
+    if rule["id"] == "A-04":
+        k = rep["key_audit_matters"]
+        if not k["section_present"]:
+            return {"state": "not fired"}
+        ev = [{"section": "Key audit matters", "page": t.get("page") or k["page"], "quote": t["quote"], "title": t["title"]} for t in k["titles"]]
+        return {"state": "fired", "evidence": ev or [{"section": "Key audit matters", "page": k["page"], "quote": "(a Key audit matters section is present; titles not listed)"}]}
+    return {"reason": f"no reader for text rule {rule['id']}"}
+
+
 def evaluate_rules(con, chart, ratio_rules, rules, ticker, fy) -> list[dict]:
     cur, prior, now, known, extra, lookup = build_context(con, chart, ratio_rules, ticker, fy)
+    apath = ROOT / "data" / "interim" / ticker / f"FY{fy}" / "auditor_report.json"
+    auditor = json.loads(apath.read_text()) if apath.exists() else None
     out = []
     for r in rules:
         res = {"rule_id": r["id"], "title": r["title"], "section": r["section"], "state": "not tested", "materiality": None, "measure": None, "reason": "", "facts": "{}"}
         if r.get("kind") == "text":
-            res["reason"] = "text rule: the engine does not read the auditor's report and notes yet"
+            res.update(text_rule(r, auditor))
+            if res["state"] == "fired":
+                res["materiality"], res["measure"], res["reason"] = rate(r["materiality"], TriggerEvaluator(cur, prior, ratio_rules["metrics"], now, known, extra, lookup))
             out.append(res)
             continue
         ev = TriggerEvaluator(cur, prior, ratio_rules["metrics"], now, known, extra, lookup)

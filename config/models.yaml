@@ -5,3 +5,4 @@ draft_gics: haiku
 write_analysis: sonnet
 review_findings: opus
 fable_review: off      # costs usage credits on Pro
+read_auditor_report: haiku    # lists key audit matter titles; every title is dropped unless its quote is found in the report text
