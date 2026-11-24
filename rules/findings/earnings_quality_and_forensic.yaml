@@ -23,10 +23,11 @@ rules:
     type: risk
     materiality: {measure: "abs(non_core_share_of_pretax_profit)", high: ">= 30", medium: ">= 15"}
     facts: [non_core_share_of_pretax_profit, fx_share_of_operating_profit, biological_fv_share_of_operating_profit, monetary_position_share_of_pretax_profit]
-    question: "How much of profit is expected to recur?"
+    question: "How much of profit is expected to recur? Note the bases differ: the FX and biological shares are measured on operating profit, the non-core share on pre-tax profit, so they are not additive."
     why: "Profit from revaluation, FX, monetary position or investments is different from profit from selling the product, and tends to reverse."
     hypotheses:
       - {h: "Profit boosted by revaluation or inflation-accounting gains", confirm: "monetary-position or fair-value line large", rule_out: "items small and offsetting"}
+      - {h: "Items recur every year (for example plantation fair-value changes)", confirm: "similar fair-value or FX gains in prior years", rule_out: "item appears in one year only"}
     who_answers: management
     docs_needed: ["income statement notes"]
   - id: F-03

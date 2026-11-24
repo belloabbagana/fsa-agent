@@ -490,9 +490,11 @@ def cmd_write_findings(args) -> None:
     cands = json.loads(cand_path.read_text())
     levels = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
     cands = [c for c in cands if levels.get(c["materiality"], 9) <= levels[args.min_materiality]]
+    if args.ids:
+        cands = [c for c in cands if c["id"] in args.ids]
     done_path = out / "findings.json"
-    done = {f["id"]: f for f in json.loads(done_path.read_text())} if done_path.exists() and not args.redo else {}
-    todo = [c for c in cands if c["id"] not in done or done[c["id"]]["status"] != "written"]
+    done = {f["id"]: f for f in json.loads(done_path.read_text())} if done_path.exists() and (not args.redo or args.ids) else {}
+    todo = [c for c in cands if c["id"] not in done or done[c["id"]]["status"] != "written" or (args.redo and (not args.ids or c["id"] in args.ids))]
     if args.limit:
         todo = todo[: args.limit]
     print(f"{ticker} FY{fy}: {len(cands)} candidates at {args.min_materiality} or above; {len(todo)} to write with {model}; {len(done)} already kept")
@@ -517,6 +519,7 @@ def cmd_review_findings(args) -> None:
     items = json.loads(path.read_text())
     levels = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
     todo = [f for f in items if f["status"] == "written" and levels.get(f["materiality"], 9) <= levels[args.min_materiality]
+            and (not args.ids or f["id"] in args.ids)
             and (args.redo or not f.get("review") or f["review"]["verdict"] == "not completed")]
     if args.limit:
         todo = todo[: args.limit]
@@ -576,10 +579,10 @@ def main() -> None:
     tr.add_argument("ticker"); tr.add_argument("fy", nargs="?", default=""); tr.add_argument("--untested", action="store_true"); tr.set_defaults(func=cmd_triggers)
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
-    wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.set_defaults(func=cmd_write_findings)
+    wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
     rf = sub.add_parser("review-findings", help="Opus review of written findings (notes only; never edits the finding)")
     rf.add_argument("ticker"); rf.add_argument("fy"); rf.add_argument("--model"); rf.add_argument("--limit", type=int, default=0)
-    rf.add_argument("--min-materiality", default="high", choices=["high", "medium", "low"]); rf.add_argument("--redo", action="store_true"); rf.set_defaults(func=cmd_review_findings)
+    rf.add_argument("--min-materiality", default="high", choices=["high", "medium", "low"]); rf.add_argument("--redo", action="store_true"); rf.add_argument("--ids", nargs="*", help="only these finding ids"); rf.set_defaults(func=cmd_review_findings)
     args = p.parse_args()
     args.func(args)
 

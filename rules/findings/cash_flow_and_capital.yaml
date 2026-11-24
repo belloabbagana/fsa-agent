@@ -60,12 +60,12 @@ rules:
     docs_needed: ["PPE note", "capital commitments"]
   - id: D-05
     section: D
-    title: Cash conversion cycle shortened sharply because of payables
+    title: Days payable outstanding rose by 60 days or more
     kind: numeric
     trigger: "dpo - dpo_prev >= 60"
     type: risk
     materiality: {measure: "abs(BS_TRADE_PAYABLES - prior(BS_TRADE_PAYABLES)) / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
-    facts: [dpo, dpo_prev, BS_TRADE_PAYABLES, payables_growth_gap]
+    facts: [dpo, dpo_prev, cash_conversion_cycle, cash_conversion_cycle_prev, dso, dio, BS_TRADE_PAYABLES, payables_growth_gap]
     question: "Is the longer payment period agreed supplier terms, or suppliers being stretched?"
     why: "Cash conversion can look better because suppliers wait longer. That is borrowing from suppliers and can reverse (agent instructions 9D)."
     hypotheses:
@@ -89,12 +89,12 @@ rules:
     docs_needed: ["borrowings note"]
   - id: H-02
     section: H
-    title: Leverage rose sharply
+    title: Debt to equity rose by 0.5 or more
     kind: numeric
     trigger: "debt_to_equity - debt_to_equity_prev >= 0.5"
     type: risk
     materiality: {measure: "(DEBT_GROSS - prior(DEBT_GROSS)) / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
-    facts: [debt_to_equity, debt_to_equity_prev, DEBT_GROSS, CF_LOANS_OBTAINED]
+    facts: [debt_to_equity, debt_to_equity_prev, DEBT_GROSS, prior(DEBT_GROSS), BS_TOTAL_EQUITY, prior(BS_TOTAL_EQUITY), CF_LOANS_OBTAINED, CF_LOANS_REPAID]
     question: "What was the new debt used for, and how will it be serviced?"
     why: "A step-up in debt is only benign if it funds assets that earn more than the cost of debt."
     hypotheses:

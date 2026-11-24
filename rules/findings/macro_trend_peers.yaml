@@ -3,12 +3,12 @@
 rules:
   - id: I-01
     section: I
-    title: Translation reserve is a large part of equity
+    title: Translation reserve is 20% or more of equity
     kind: numeric
     trigger: "abs(translation_reserve_share_of_equity) >= 20"
     type: risk
     materiality: {measure: "abs(translation_reserve_share_of_equity)", high: ">= 40", medium: ">= 20"}
-    facts: [translation_reserve_share_of_equity, BS_CURRENCY_TRANSLATION_RESERVE, OCI_FX_TRANSLATION]
+    facts: [translation_reserve_share_of_equity, BS_CURRENCY_TRANSLATION_RESERVE, BS_RETAINED_EARNINGS, BS_TOTAL_EQUITY, OCI_FX_TRANSLATION]
     question: "How much of equity is exchange-rate translation of foreign operations, and what happens if the naira recovers?"
     why: "A big translation reserve means reported equity depends on exchange rates rather than operating retention."
     hypotheses:

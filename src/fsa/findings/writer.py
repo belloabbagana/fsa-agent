@@ -19,7 +19,8 @@ SYSTEM = (
     "3. State what the figures show (observation), then why a CFA-trained analyst would look further (why_it_matters). "
     "Do not answer the question and do not add facts from outside the list. Where a figure is unavailable, say so.\n"
     "4. Describe a ratio in plain words with its unit (for example 'operating cash flow was 0.58 times profit', or a percentage if the unit is %), never by its identifier or with underscores. Account amounts are N millions.\n"
-    "5. observation: 2 to 4 sentences. why_it_matters: 1 to 3 sentences.\n"
+    "5. Wording discipline: no judgement words that the figures do not establish (large, sharp, heavy, significant, huge, concerning, improvement, favourable); say what the figure is and let the reader judge. Quote figures exactly as shown, never as 'a third' or 'about half'. If what_triggered_it uses >= say 'met or exceeded', never 'exceeded'. Do not use 'therefore', 'because', 'driven by' or 'main contributor' unless a supplied figure shows it; present causes only as things to examine. Do not rank or order items by size unless the figures show that order; list them in the order supplied and do not say 'followed by'. Do not say a flow is 'new borrowing', 'debt' or 'repayment' beyond what its label says (a gross inflow is not net debt). Describe a trigger as a threshold the figure reached ('reached the 2% threshold'), never as something that should or ought to hold. Write a negative cash flow as an outflow of N<amount> without the minus sign, always with the N prefix. Do not mention any measure that is not in the figures list. Use each figure's meaning, if given, to say what it compares, with its unit (pp means percentage points).\n"
+    "6. observation: 2 to 4 sentences. why_it_matters: 1 to 3 sentences.\n"
     'Reply with JSON only: {"observation": "...", "why_it_matters": "..."}'
 )
 
@@ -34,7 +35,7 @@ def show(v: float) -> str:
 
 def prompt_for(rec: dict) -> str:
     figures = [{"name": f["name"], "show": show(f["value"]) if f["value"] is not None else "not available",
-                **({"unit": f["unit"]} if f.get("unit") else {}), **({"where": "; ".join(f"{s['statement']} p.{s['page']} '{s['label']}'" for s in f["source"])} if isinstance(f.get("source"), list) else {})}
+                **({"unit": f["unit"]} if f.get("unit") else {}), **({"meaning": f["meaning"]} if f.get("meaning") else {}), **({"where": "; ".join(f"{s['statement']} p.{s['page']} '{s['label']}'" for s in f["source"])} if isinstance(f.get("source"), list) else {})}
                for f in rec["facts"]]
     body = {"company": rec["ticker"], "fiscal_year": rec["fiscal_year"], "amounts_unit": "N millions (account amounts); ratios carry their own unit", "title": rec["title"], "what_triggered_it": rec["trigger"],
             "question_to_be_asked_later": rec["question"], "figures": figures}

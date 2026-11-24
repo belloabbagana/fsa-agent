@@ -31,6 +31,7 @@ def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int)
     cur, prior, now, known, extra, lookup = build_context(con, chart, ratio_rules, ticker, fy)
     src = _sources(con, ticker, fy)
     units = {r["id"]: r.get("unit") for r in ratio_rules["ratios"]} | {r["id"]: r.get("unit") for r in yaml.safe_load((ROOT / "rules" / "forensic.yaml").read_text())["ratios"]}
+    meanings = {r["id"]: r.get("why") for r in ratio_rules["ratios"]} | {r["id"]: r.get("why") for r in yaml.safe_load((ROOT / "rules" / "forensic.yaml").read_text())["ratios"]}
     by_id = {r["id"]: r for r in rules}
     records = []
     for res in results:
@@ -47,6 +48,8 @@ def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int)
                 entry = {"name": name, "value": None, "note": f"not available: {e}"}
             if units.get(name):
                 entry["unit"] = units[name]
+            if meanings.get(name):
+                entry["meaning"] = meanings[name]
             if name in src:
                 entry["source"] = [{k: s[k] for k in ("statement", "label", "page")} | {"printed_value": s["value"], "unit": s["unit"]} for s in src[name]]
             elif name in known:

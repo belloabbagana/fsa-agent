@@ -96,7 +96,7 @@ rules:
     trigger: "BS_BORROWINGS_C / DEBT_GROSS >= 0.6 and DEBT_GROSS > 0"
     type: risk
     materiality: {measure: "BS_BORROWINGS_C / BS_TOTAL_ASSETS * 100", high: ">= 8", medium: ">= 3"}
-    facts: [BS_BORROWINGS_C, BS_BORROWINGS_NC, BS_BANK_OVERDRAFT, BS_CASH]
+    facts: [BS_BORROWINGS_C, BS_BORROWINGS_NC, BS_BANK_OVERDRAFT, BS_LEASE_LIABILITIES_C, BS_LEASE_LIABILITIES_NC, DEBT_GROSS, BS_CASH]
     question: "What is the maturity and currency of the borrowings due within a year, and is refinancing arranged?"
     why: "Most debt falling due within a year concentrates refinancing risk, in a country where foreign-currency availability can tighten suddenly."
     hypotheses:
@@ -119,12 +119,12 @@ rules:
     docs_needed: ["finance costs note"]
   - id: C-04
     section: C
-    title: Large related-party receivable
+    title: Related-party receivable is 2% or more of total assets
     kind: numeric
     trigger: "BS_RELATED_PARTY_RECEIVABLES_NC / BS_TOTAL_ASSETS * 100 >= 2"
     type: risk
     materiality: {measure: "BS_RELATED_PARTY_RECEIVABLES_NC / BS_TOTAL_ASSETS * 100", high: ">= 10", medium: ">= 2"}
-    facts: [BS_RELATED_PARTY_RECEIVABLES_NC, BS_TOTAL_ASSETS, BS_TOTAL_EQUITY]
+    facts: [BS_RELATED_PARTY_RECEIVABLES_NC, BS_TOTAL_ASSETS, "BS_RELATED_PARTY_RECEIVABLES_NC / BS_TOTAL_ASSETS * 100", BS_TOTAL_EQUITY]
     question: "Who owes the group this money, on what terms (interest, security, repayment dates), and has any been repaid or provided for?"
     why: "Large loans to related parties carry conflict-of-interest and cash-extraction risk (agent instructions 9G)."
     hypotheses:
