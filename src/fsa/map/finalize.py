@@ -59,6 +59,9 @@ def finalize(chart: dict, lines: list[dict], rule: dict, model: dict | None, dec
             pending = proposed.get(dkey)
             row.update(code=r, basis="rule_disputed", status="open",
                        note=f"model says {m or 'no code'}" + (f"; a proposed decision awaits approval ({pending['code']})" if pending else ""))
+        elif not r and not ln["label"].strip() and not ln.get("value"):
+            row.update(basis="intermediate_total", status="settled",
+                       note="unlabelled row with no figure for this year (a blank or nil placeholder): nothing to map")
         elif not r and m:
             row.update(code=None, basis="open", status="open", note=f"model suggests {m}")
         elif not ln["label"].strip():

@@ -77,3 +77,11 @@ def test_disclosures_report_restatements_cash_definition_and_standard_notes(tmp_
     assert "821,080" in rest["text"] and "821,184" in rest["text"] and "not state the reason" in rest["text"]
     assert any("not investment advice" in i["text"] for i in items)
     assert "Important" in D.to_markdown("T", 2025, items)
+
+
+def test_unlabelled_row_without_a_figure_is_not_an_open_decision():
+    lines = [L(1, "", None, "profit_or_loss"), L(2, "", 0.0, "profit_or_loss")]
+    rule = {("profit_or_loss", 1): None, ("profit_or_loss", 2): None}
+    model = {("profit_or_loss", 1): "OCI_NET", ("profit_or_loss", 2): "OCI_NET"}
+    out = finalize(CHART, lines, rule, model, [])
+    assert all(r["status"] == "settled" and r["basis"] == "intermediate_total" for r in out)
