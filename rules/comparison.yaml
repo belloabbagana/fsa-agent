@@ -24,3 +24,4 @@ overrides:
   roic:                  {formula: "NOPAT / avg(BS_TOTAL_EQUITY + DEBT_GROSS - BS_CASH) * 100", nm_if: ["avg(BS_TOTAL_EQUITY + DEBT_GROSS - BS_CASH) <= 0"], note: "invested capital excludes lease liabilities (not provided)"}
   net_debt_to_equity:    {formula: "(DEBT_GROSS - BS_CASH) / BS_TOTAL_EQUITY", note: "excludes lease liabilities (not provided)"}
   dividend_payout_cash:  {formula: "-CF_DIVIDENDS_PAID / PL_PROFIT_FOR_YEAR * 100", nm_if: ["PL_PROFIT_FOR_YEAR <= 0"], note: "total profit: the owners' share is not provided"}
+  lvgi:                  {formula: "((BS_TOTAL_CURRENT_LIABILITIES + BS_BORROWINGS_NC) / BS_TOTAL_ASSETS) / ((prior(BS_TOTAL_CURRENT_LIABILITIES) + prior(BS_BORROWINGS_NC)) / prior(BS_TOTAL_ASSETS))", nm_if: ["BS_TOTAL_ASSETS <= 0", "prior(BS_TOTAL_ASSETS) <= 0", "(prior(BS_TOTAL_CURRENT_LIABILITIES) + prior(BS_BORROWINGS_NC)) <= 0"], note: "excludes lease liabilities (not provided)"}

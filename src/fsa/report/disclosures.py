@@ -146,6 +146,9 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
         if any(c == "PL_EPS_BASIC" and "kobo" in (lbl or "").lower() for _, _, c, _, _, lbl, *_ in final):
             add("basis", "note", "Earnings per share is printed in kobo by this company; it is converted to naira (divided by 100) where compared with other companies.")
 
+        if totals.get("CF_ACQUISITIONS"):
+            add("basis", "important", f"The cash flow statement shows an acquisition of a subsidiary in the year (net {_m(totals['CF_ACQUISITIONS'], unit)}). Year-on-year growth rates, working-capital changes and the forensic indices for this year mix organic and acquired amounts, and the opening balances may exclude the acquired business.", f"cash flows p.{pages.get('cash_flows', '?')}")
+
         # ---- how lines were mapped ----
         from collections import Counter
         basis = Counter(r[3] for r in final)
@@ -165,6 +168,13 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
         else:
             status = " The mapping has not yet been signed off by the analyst."
         add("mapping", "important" if (n_open or not so) else "note", txt + status)
+
+    # ---- forensic indicators ----
+    fcount = con.execute("SELECT count(*) FROM forensic_scores WHERE ticker=? AND fiscal_year=? AND status='ok'", [ticker, fy]).fetchone()[0]
+    if fcount:
+        add("forensic", "important", "The forensic indicators in this report (Beneish M-score, Altman Z'' for emerging markets, and growth-gap tests) are statistical screens calibrated on other markets and decades. "
+            "They are items to examine, never findings, and are never read alone. Devaluation, high inflation, acquisitions and balance-sheet restatements move several of their inputs for reasons unrelated to manipulation or distress. "
+            "Each is shown with its drivers and against the company's own history and its peers.")
 
     # ---- blank cells and damaged text ----
     blanks = con.execute("SELECT count(*), count(DISTINCT label), count(*) FILTER (entity='group'), count(*) FILTER (entity='company') FROM pdf_statement_lines WHERE ticker=? AND fiscal_year=? AND value_flag='blank_in_filing'", [ticker, fy]).fetchone()

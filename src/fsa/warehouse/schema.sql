@@ -209,3 +209,18 @@ CREATE TABLE IF NOT EXISTS peer_position (
     method        VARCHAR,
     small_set     BOOLEAN
 );
+
+-- Forensic indices, scores and red-flag tests. Indicators to examine, never verdicts, never read alone.
+CREATE TABLE IF NOT EXISTS forensic_scores (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    item_id       VARCHAR NOT NULL,
+    unit          VARCHAR,
+    value         DOUBLE,
+    status        VARCHAR NOT NULL,      -- ok | N/M
+    reason        VARCHAR,
+    band          VARCHAR,               -- the published zone for a score
+    flagged       BOOLEAN,               -- for a red-flag test: did it trip the threshold
+    inputs        VARCHAR,
+    rules_version VARCHAR
+);

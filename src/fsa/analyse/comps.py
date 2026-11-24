@@ -8,6 +8,7 @@ from datetime import date
 
 import yaml
 
+from fsa.analyse.forensic import load_rules as load_forensic, merged
 from fsa.analyse.ratios import FACTOR, run_ratios
 from fsa.warehouse.db import ROOT
 
@@ -58,6 +59,7 @@ def position(value: float, peers: list[float], cfg: dict) -> tuple[str, str, boo
 
 def compute_all(con, chart: dict, ratio_rules: dict) -> dict:
     mapping, cmp = load(MAP_PATH), load(CMP_PATH)
+    ratio_rules = merged(ratio_rules, load_forensic())          # the forensic indices and flags are compared with peers too
     con.execute("DELETE FROM comparison_ratios")
     tickers = [r[0] for r in con.execute("SELECT DISTINCT ticker FROM statement_lines_current").fetchall()]
     n = 0

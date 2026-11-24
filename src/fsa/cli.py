@@ -15,7 +15,7 @@ from fsa.map.chart import coverage, load_chart, validate_chart
 from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_check, parse_proposals, verify_model
 from fsa.map.finalize import finalize, load_decisions, signed_off
 from fsa.map.rules_mapper import propose as rule_propose
-from fsa.analyse import comps
+from fsa.analyse import comps, forensic as fz
 from fsa.analyse import ratios as rat
 from fsa.classify import draft as gdraft
 from fsa.report import disclosures as disc
@@ -387,7 +387,9 @@ def cmd_comps_show(args) -> None:
     lines += [f"Group: {len(mem)} companies ({', '.join(mem)}). All figures from NGN Market data for every company (same definitions); the audited-basis figure for {ticker} is shown for reference. "
               "'Small peer set' means fewer than 5 peers, so the median is indicative. Position says where the number sits, not whether that is good or bad.", ""]
     audited = {r: (v, u) for r, v, u in con.execute("SELECT ratio_id, value, unit FROM ratios WHERE ticker=? AND fiscal_year=? AND status='ok'", [ticker, fy]).fetchall()}
+    audited.update({r: (v, u) for r, v, u in con.execute("SELECT item_id, value, unit FROM forensic_scores WHERE ticker=? AND fiscal_year=? AND status='ok'", [ticker, fy]).fetchall()})
     cats = dict(con.execute("SELECT DISTINCT ratio_id, category FROM ratios").fetchall())
+    cats.update({r: "forensic" for (r,) in con.execute("SELECT DISTINCT item_id FROM forensic_scores").fetchall()})
     cur_cat = None
     rows = con.execute("""SELECT p.ratio_id, p.value, p.peer_n, p.peer_median, p.peer_min, p.peer_max, p.position, p.small_set, r.unit
                           FROM peer_position p JOIN (SELECT DISTINCT ratio_id, unit FROM comparison_ratios) r USING (ratio_id)
@@ -395,7 +397,7 @@ def cmd_comps_show(args) -> None:
     rows.sort(key=lambda x: (cats.get(x[0], ""), x[0]))
     lines += ["| Ratio | " + ticker + " (comparison basis) | Audited basis | Peers (n) | Peer median | Peer range | Position |", "|---|---|---|---|---|---|---|"]
     def f(v, u):
-        return "N/M" if v is None else {"pct": f"{v:,.1f}%", "x": f"{v:,.2f}x", "days": f"{v:,.0f} d"}.get(u, f"{v:,.2f}")
+        return "N/M" if v is None else {"pct": f"{v:,.1f}%", "x": f"{v:,.2f}x", "days": f"{v:,.0f} d", "pp": f"{v:+,.1f} pts", "ratio": f"{v:,.3f}", "score": f"{v:,.2f}"}.get(u, f"{v:,.2f}")
     cur_cat = None
     for rid, v, pn, med, mn, mx, pos, small, unit in rows:
         if cats.get(rid) != cur_cat:
@@ -415,6 +417,35 @@ def cmd_comps_show(args) -> None:
     (out / "peer_comparison.md").write_text("\n".join(lines) + "\n")
     n_ok = sum(1 for r in rows if r[1] is not None)
     print(f"{ticker} FY{fy}: {n_ok} of {len(rows)} ratios comparable; wrote {out / 'peer_comparison.md'}")
+    if args.show:
+        print("\n".join(lines))
+
+def cmd_forensic(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    chart, con, rules, frules = load_chart(), connect(), rat.load_rules(), fz.load_rules()
+    res = fz.compute(con, chart, rules, frules, ticker, fy)
+    fz.save(con, ticker, fy, res, frules["version"])
+    why = {i["id"]: i["why"] for i in frules["ratios"]}
+    lines = [f"# Forensic indicators: {ticker} FY{fy} (rules v{frules['version']}, year-end balances for the two published models)", "",
+             "> **Read with care.** These are statistical indicators calibrated on other markets. They are items to examine, never findings, and never read alone: "
+             "devaluation and high inflation move several inputs (sales growth, receivables, asset values) for reasons unrelated to manipulation or distress. "
+             "Compare each with the company's own history and with peers.", ""]
+    for r in res:
+        lines.append(f"- **{r['ratio_id'].replace('_', ' ')}**: {fz.fmt(r)}  \n  *{why[r['ratio_id']]}*")
+    for item in frules["ratios"]:
+        if item.get("coefficients"):
+            rows = fz.contributions(item, res)
+            if rows:
+                lines += ["", f"### What drives the {item['id'].replace('_', ' ')} (largest first; a neutral company's indices are 1.0)", ""]
+                lines += [f"- {k}: {v:,.3f} → contributes {x:+,.2f}" for k, v, x in rows[:4]]
+    out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "forensic.md").write_text("\n".join(lines) + "\n")
+    byid = {r["ratio_id"]: r for r in res}
+    print(f"{ticker} FY{fy}: Beneish M = {fz.fmt(byid['beneish_m'])}")
+    print(f"           Altman Z'' = {fz.fmt(byid['altman_z'])}")
+    flagged = [r["ratio_id"] for r in res if r.get("flagged")]
+    print(f"           flags tripped: {', '.join(flagged) if flagged else 'none'}")
     if args.show:
         print("\n".join(lines))
 
@@ -458,6 +489,8 @@ def main() -> None:
     cp.set_defaults(func=cmd_comps)
     cs = sub.add_parser("comps-show", help="Write the peer comparison for a core company-year")
     cs.add_argument("ticker"); cs.add_argument("fy"); cs.add_argument("--show", action="store_true"); cs.set_defaults(func=cmd_comps_show)
+    fo = sub.add_parser("forensic", help="Beneish M-score, Altman Z'' and red-flag tests for a company-year")
+    fo.add_argument("ticker"); fo.add_argument("fy"); fo.add_argument("--show", action="store_true"); fo.set_defaults(func=cmd_forensic)
     args = p.parse_args()
     args.func(args)
 

@@ -1,0 +1,157 @@
+# FORENSIC SCORES AND RED-FLAG TESTS (draft v0.1 by Claude, for Bello to decide)
+#
+# What this is: published statistical screens for earnings quality and financial stress, plus simple growth-gap tests. They are
+# INDICATORS to examine, never verdicts, and never read alone (project rule 6; agent instructions, section 9). Each is read against
+# peers and against the company's own history. They were calibrated on other markets and other decades; in Nigeria's devaluation
+# and high-inflation years several inputs (sales growth, receivables, asset values) move for reasons that have nothing to do with
+# manipulation or distress, so a high score is a reason to look, not a finding.
+#
+# Formulas use chart-of-accounts codes and the same evaluator as rules/ratios.yaml (see that file's header). Ids are lower-case.
+#
+# DECISIONS FOR YOU:
+#  1. YEAR-END, NOT AVERAGE, for the two published models. Your rule (balance sheet vs another statement = average) is applied
+#     everywhere else. Beneish and Altman were fitted on year-end balances with their own coefficients; averaging would change
+#     what the coefficients mean. So these use the models' original definitions. Sloan accruals (accruals_ratio in ratios.yaml)
+#     follows your averaging rule.
+#  2. TATA (Beneish's accruals term) uses the cash-flow version: (profit for the year - operating cash flow) / total assets.
+#     The original used working-capital changes; the cash-flow version is the common modern form and uses fewer assumptions.
+#  3. LVGI counts lease liabilities as debt (IFRS 16), so leverage is comparable with the other ratios.
+#  4. CUT-OFFS for the Beneish M-score: -1.78 and -2.22 are the two values commonly used in the literature. Above -1.78 = more
+#     like known manipulators; between -2.22 and -1.78 = grey; below -2.22 = less like them. Please confirm against the paper
+#     before the report quotes them.
+#  5. ALTMAN Z'' for emerging markets: the constant 3.25 and zones (above 5.85 safe, 4.35 to 5.85 grey, below 4.35 distress)
+#     follow the emerging-market version of the non-manufacturer model. EBIT is the standardised operating profit (it includes any
+#     FX and fair-value gains as printed). Retained earnings and book values are distorted by inflation accounting and revaluation.
+#  6. GROWTH-GAP FLAGS (thresholds are judgement): receivables growing 10 points faster than revenue; inventory 10 points faster
+#     than cost of sales; payables 20 points faster than cost of sales; operating cash flow below 0.8x profit.
+#  7. PEERS. NGN Market gives no depreciation or SG&A, so the full M-score cannot be computed for peers. The indices that CAN be
+#     (DSRI, GMI, AQI, SGI, LVGI, TATA) and the Altman and growth-gap tests are compared with peers instead.
+#  8. NEVER ALONE. Every report states these caveats next to the scores.
+version: "0.1-draft"
+
+ratios:
+  # ---------------------------------------------------------------- Beneish M-score (1999), eight variables, year-end balances
+  - id: dsri
+    category: forensic
+    unit: x
+    formula: "(BS_TRADE_RECEIVABLES / PL_REVENUE) / (prior(BS_TRADE_RECEIVABLES) / prior(PL_REVENUE))"
+    nm_if: ["PL_REVENUE <= 0", "prior(PL_REVENUE) <= 0", "prior(BS_TRADE_RECEIVABLES) <= 0"]
+    why: "Days-sales-in-receivables index. Above 1: receivables grew faster than sales (possible aggressive revenue recognition, or looser credit)."
+  - id: gmi
+    category: forensic
+    unit: x
+    formula: "(prior(PL_GROSS_PROFIT) / prior(PL_REVENUE)) / (PL_GROSS_PROFIT / PL_REVENUE)"
+    nm_if: ["PL_REVENUE <= 0", "prior(PL_REVENUE) <= 0", "PL_GROSS_PROFIT <= 0"]
+    why: "Gross-margin index. Above 1: margin fell, which Beneish links to more pressure to manipulate."
+  - id: aqi
+    category: forensic
+    unit: x
+    formula: "(1 - (BS_TOTAL_CURRENT_ASSETS + BS_PPE) / BS_TOTAL_ASSETS) / (1 - (prior(BS_TOTAL_CURRENT_ASSETS) + prior(BS_PPE)) / prior(BS_TOTAL_ASSETS))"
+    nm_if: ["BS_TOTAL_ASSETS <= 0", "prior(BS_TOTAL_ASSETS) <= 0", "(1 - (prior(BS_TOTAL_CURRENT_ASSETS) + prior(BS_PPE)) / prior(BS_TOTAL_ASSETS)) <= 0"]
+    why: "Asset-quality index: the share of assets that are neither current nor physical (goodwill, intangibles, deferred items). Above 1: more costs possibly capitalised."
+  - id: sgi
+    category: forensic
+    unit: x
+    formula: "PL_REVENUE / prior(PL_REVENUE)"
+    nm_if: ["prior(PL_REVENUE) <= 0"]
+    why: "Sales-growth index. High growth raises pressure to sustain it. In Nigeria it also carries inflation and devaluation, so it is inflated by design."
+  - id: depi
+    category: forensic
+    unit: x
+    formula: "(prior(CF_DEPRECIATION_AMORTISATION) / (prior(CF_DEPRECIATION_AMORTISATION) + prior(BS_PPE))) / (CF_DEPRECIATION_AMORTISATION / (CF_DEPRECIATION_AMORTISATION + BS_PPE))"
+    nm_if: ["CF_DEPRECIATION_AMORTISATION <= 0", "prior(CF_DEPRECIATION_AMORTISATION) <= 0", "BS_PPE <= 0", "prior(BS_PPE) <= 0"]
+    why: "Depreciation index. Above 1: the depreciation rate fell (longer useful lives or lower charges would flatter profit)."
+  - id: sgai
+    category: forensic
+    unit: x
+    formula: "((-PL_ADMIN_EXPENSES - PL_SELLING_DISTRIBUTION) / PL_REVENUE) / ((-prior(PL_ADMIN_EXPENSES) - prior(PL_SELLING_DISTRIBUTION)) / prior(PL_REVENUE))"
+    nm_if: ["PL_REVENUE <= 0", "prior(PL_REVENUE) <= 0", "(-prior(PL_ADMIN_EXPENSES) - prior(PL_SELLING_DISTRIBUTION)) <= 0"]
+    why: "SG&A index: selling and administrative costs relative to sales."
+  - id: lvgi
+    category: forensic
+    unit: x
+    formula: "((BS_TOTAL_CURRENT_LIABILITIES + BS_BORROWINGS_NC + BS_LEASE_LIABILITIES_NC) / BS_TOTAL_ASSETS) / ((prior(BS_TOTAL_CURRENT_LIABILITIES) + prior(BS_BORROWINGS_NC) + prior(BS_LEASE_LIABILITIES_NC)) / prior(BS_TOTAL_ASSETS))"
+    nm_if: ["BS_TOTAL_ASSETS <= 0", "prior(BS_TOTAL_ASSETS) <= 0", "(prior(BS_TOTAL_CURRENT_LIABILITIES) + prior(BS_BORROWINGS_NC) + prior(BS_LEASE_LIABILITIES_NC)) <= 0"]
+    why: "Leverage index: debt and current liabilities relative to assets, against last year. Above 1: leverage rose (a debt-covenant incentive)."
+  - id: tata
+    category: forensic
+    unit: ratio
+    formula: "(PL_PROFIT_FOR_YEAR - CF_OPERATING) / BS_TOTAL_ASSETS"
+    nm_if: ["BS_TOTAL_ASSETS <= 0"]
+    why: "Total accruals to assets: profit not backed by operating cash flow, scaled by assets. The most heavily weighted term in the model."
+  - id: beneish_m
+    category: forensic
+    unit: score
+    formula: "-4.84 + 0.920 * dsri + 0.528 * gmi + 0.404 * aqi + 0.892 * sgi + 0.115 * depi - 0.172 * sgai + 4.679 * tata - 0.327 * lvgi"
+    needs: [dsri, gmi, aqi, sgi, depi, sgai, lvgi, tata]
+    coefficients: {constant: -4.84, dsri: 0.920, gmi: 0.528, aqi: 0.404, sgi: 0.892, depi: 0.115, sgai: -0.172, tata: 4.679, lvgi: -0.327}   # shown as "what drives the score"; a test checks they match the formula
+    bands:
+      - {above: -1.78, label: "above the -1.78 cut-off: more like known manipulators; examine"}
+      - {above: -2.22, label: "between -2.22 and -1.78: grey zone"}
+      - {label: "below -2.22: less like known manipulators"}
+    why: "Beneish (1999) probability-style screen for earnings manipulation. With every index at 1 and no accruals the score is -2.48, which is a useful anchor."
+  # ---------------------------------------------------------------- Altman Z'' (emerging-market version), year-end balances
+  - id: altman_x1
+    category: forensic
+    unit: ratio
+    formula: "(BS_TOTAL_CURRENT_ASSETS - BS_TOTAL_CURRENT_LIABILITIES) / BS_TOTAL_ASSETS"
+    nm_if: ["BS_TOTAL_ASSETS <= 0"]
+    why: "Working capital to total assets (liquidity)."
+  - id: altman_x2
+    category: forensic
+    unit: ratio
+    formula: "BS_RETAINED_EARNINGS / BS_TOTAL_ASSETS"
+    nm_if: ["BS_TOTAL_ASSETS <= 0"]
+    why: "Retained earnings to total assets (cumulative profitability and age). Distorted by inflation accounting and revaluation."
+  - id: altman_x3
+    category: forensic
+    unit: ratio
+    formula: "PL_OPERATING_PROFIT / BS_TOTAL_ASSETS"
+    nm_if: ["BS_TOTAL_ASSETS <= 0"]
+    why: "Operating profit to total assets (earning power)."
+  - id: altman_x4
+    category: forensic
+    unit: ratio
+    formula: "BS_TOTAL_EQUITY / BS_TOTAL_LIABILITIES"
+    nm_if: ["BS_TOTAL_LIABILITIES <= 0"]
+    why: "Book equity to total liabilities (solvency)."
+  - id: altman_z
+    category: forensic
+    unit: score
+    formula: "3.25 + 6.56 * altman_x1 + 3.26 * altman_x2 + 6.72 * altman_x3 + 1.05 * altman_x4"
+    needs: [altman_x1, altman_x2, altman_x3, altman_x4]
+    coefficients: {constant: 3.25, altman_x1: 6.56, altman_x2: 3.26, altman_x3: 6.72, altman_x4: 1.05}
+    bands:
+      - {above: 5.85, label: "safe zone"}
+      - {above: 4.35, label: "grey zone"}
+      - {label: "distress zone"}
+    why: "Altman Z'' for emerging-market non-financial firms. A statistical stress indicator, not a prediction of failure; zone names are Altman's."
+  # ---------------------------------------------------------------- growth-gap flags (thresholds are judgement)
+  - id: receivables_growth_gap
+    category: forensic
+    unit: pp
+    formula: "(BS_TRADE_RECEIVABLES / prior(BS_TRADE_RECEIVABLES) - 1) * 100 - (PL_REVENUE / prior(PL_REVENUE) - 1) * 100"
+    nm_if: ["prior(BS_TRADE_RECEIVABLES) <= 0", "prior(PL_REVENUE) <= 0"]
+    flag_if: "receivables_growth_gap > 10"
+    why: "Receivables growth minus revenue growth, in percentage points. Receivables growing faster than sales is an examine item (agent instructions, 9B)."
+  - id: inventory_growth_gap
+    category: forensic
+    unit: pp
+    formula: "(BS_INVENTORIES / prior(BS_INVENTORIES) - 1) * 100 - (PL_COST_OF_SALES / prior(PL_COST_OF_SALES) - 1) * 100"
+    nm_if: ["prior(BS_INVENTORIES) <= 0", "prior(PL_COST_OF_SALES) >= 0"]
+    flag_if: "inventory_growth_gap > 10"
+    why: "Inventory growth minus cost-of-sales growth. Stock building faster than activity is an examine item (9C)."
+  - id: payables_growth_gap
+    category: forensic
+    unit: pp
+    formula: "(BS_TRADE_PAYABLES / prior(BS_TRADE_PAYABLES) - 1) * 100 - (PL_COST_OF_SALES / prior(PL_COST_OF_SALES) - 1) * 100"
+    nm_if: ["prior(BS_TRADE_PAYABLES) <= 0", "prior(PL_COST_OF_SALES) >= 0"]
+    flag_if: "payables_growth_gap > 20"
+    why: "Payables growth minus cost-of-sales growth. Not automatically good news: it can be stretched suppliers (9D)."
+  - id: cash_profit_gap
+    category: forensic
+    unit: x
+    formula: "CF_OPERATING / PL_PROFIT_FOR_YEAR"
+    nm_if: ["PL_PROFIT_FOR_YEAR <= 0"]
+    flag_if: "cash_profit_gap < 0.8"
+    why: "Operating cash flow over profit. Persistently below 1 means profit is not turning into cash (9A)."
