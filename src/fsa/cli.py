@@ -19,6 +19,7 @@ from fsa.analyse import comps, forensic as fz
 from fsa.analyse import ratios as rat
 from fsa.classify import draft as gdraft
 from fsa.findings import records as frec
+from fsa.findings import writer as fwr
 from fsa.findings import triggers as trg
 from fsa.report import disclosures as disc
 from fsa.map.validate_mapping import check_identities, check_subtotals
@@ -478,6 +479,33 @@ def cmd_triggers(args) -> None:
                     print(f"   not tested {r['rule_id']}: {r['reason']}")
 
 
+def cmd_write_findings(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    model = args.model or yaml.safe_load((ROOT / "config" / "models.yaml").read_text())["write_analysis"]
+    out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    cand_path = out / "finding_candidates.json"
+    if not cand_path.exists():
+        raise SystemExit(f"No candidates for {ticker} FY{fy}. Run: ./fsa triggers {ticker} FY{fy}")
+    cands = json.loads(cand_path.read_text())
+    levels = {"high": 0, "medium": 1, "low": 2, "unrated": 3}
+    cands = [c for c in cands if levels.get(c["materiality"], 9) <= levels[args.min_materiality]]
+    done_path = out / "findings.json"
+    done = {f["id"]: f for f in json.loads(done_path.read_text())} if done_path.exists() and not args.redo else {}
+    todo = [c for c in cands if c["id"] not in done or done[c["id"]]["status"] != "written"]
+    if args.limit:
+        todo = todo[: args.limit]
+    print(f"{ticker} FY{fy}: {len(cands)} candidates at {args.min_materiality} or above; {len(todo)} to write with {model}; {len(done)} already kept")
+    for c in todo:
+        done[c["id"]] = fwr.write_one(c, model)                  # stops the run if a different model answered
+        f = done[c["id"]]
+        print(f"   {c['id']}: {f['status']} (tries {f['attempts']}, model {', '.join(f['written_by'])}" + (f", cost ${f['cost_usd']:.3f}" if f["cost_usd"] else "") + ")")
+        ordered = [done[c2["id"]] for c2 in json.loads(cand_path.read_text()) if c2["id"] in done]
+        done_path.write_text(json.dumps(ordered, indent=2, default=str))     # saved after each, so a paused run resumes
+    ordered = [done[c2["id"]] for c2 in json.loads(cand_path.read_text()) if c2["id"] in done]
+    (out / "findings.md").write_text(fwr.to_markdown(ordered, ticker, fy))
+    print(f"wrote {out / 'findings.md'}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -521,6 +549,9 @@ def main() -> None:
     fo.add_argument("ticker"); fo.add_argument("fy"); fo.add_argument("--show", action="store_true"); fo.set_defaults(func=cmd_forensic)
     tr = sub.add_parser("triggers", help="Dry-run the findings trigger rules (use 'all' for the six core company-years)")
     tr.add_argument("ticker"); tr.add_argument("fy", nargs="?", default=""); tr.add_argument("--untested", action="store_true"); tr.set_defaults(func=cmd_triggers)
+    wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
+    wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
+    wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.set_defaults(func=cmd_write_findings)
     args = p.parse_args()
     args.func(args)
 

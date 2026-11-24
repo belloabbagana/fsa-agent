@@ -7,7 +7,10 @@ import ast
 import json
 
 from fsa.analyse.ratios import NotMeaningful
+import yaml
+
 from fsa.findings.triggers import TriggerEvaluator, build_context
+from fsa.warehouse.db import ROOT
 
 FIELDS = ("id", "section", "title", "type", "question", "why", "hypotheses", "who_answers", "docs_needed")
 
@@ -27,6 +30,7 @@ def _sources(con, ticker: str, fy: int) -> dict:
 def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int) -> list[dict]:
     cur, prior, now, known, extra, lookup = build_context(con, chart, ratio_rules, ticker, fy)
     src = _sources(con, ticker, fy)
+    units = {r["id"]: r.get("unit") for r in ratio_rules["ratios"]} | {r["id"]: r.get("unit") for r in yaml.safe_load((ROOT / "rules" / "forensic.yaml").read_text())["ratios"]}
     by_id = {r["id"]: r for r in rules}
     records = []
     for res in results:
@@ -41,6 +45,8 @@ def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int)
                 entry = {"name": name, "value": value}
             except NotMeaningful as e:
                 entry = {"name": name, "value": None, "note": f"not available: {e}"}
+            if units.get(name):
+                entry["unit"] = units[name]
             if name in src:
                 entry["source"] = [{k: s[k] for k in ("statement", "label", "page")} | {"printed_value": s["value"], "unit": s["unit"]} for s in src[name]]
             elif name in known:
