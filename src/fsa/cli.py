@@ -12,6 +12,9 @@ from fsa.ingest.inbox import process_inbox
 from fsa.ingest.ngnmarket import load_export
 from fsa.ingest.ngnmarket import sha256_of
 from fsa.map.chart import coverage, load_chart, validate_chart
+from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_check, parse_proposals, verify_model
+from fsa.map.rules_mapper import propose as rule_propose
+from fsa.map.validate_mapping import check_subtotals
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
 from fsa.warehouse.db import ROOT, connect
 
@@ -128,6 +131,126 @@ def cmd_chart_check(args) -> None:
     for st, label, where in sorted(unknown):
         print(f"    [{st}] {label[:70]}   ({where})")
 
+def cmd_model_check(args) -> None:
+    """Prove which model really answers when we ask for one."""
+    try:
+        r = model_check(args.model)
+    except WrongModelError as e:
+        raise SystemExit(f"MODEL CHECK FAILED: {e}")
+    except Exception as e:
+        raise SystemExit(f"The model call did not work: {e}\nIf it says 'Not logged in', sign the bundled tool in first (see the instructions in chat).")
+    print(f"Asked for:        {r['requested']}")
+    print(f"Actually used:    {', '.join(r['answered_by'])}   (read from the usage report, not from the model's own claim)")
+    print(f"Reply:            {r['reply']!r}")
+    print(f"Cost reported:    {r['cost_usd']}")
+
+
+def _load_group_lines(con, ticker, fy):
+    rows = con.execute("""SELECT statement, seq, section, label, value FROM pdf_statement_lines
+                          WHERE ticker=? AND fiscal_year=? AND entity='group' AND period_end=?
+                          ORDER BY statement, seq""", [ticker, fy, date(fy, 12, 31)]).fetchall()
+    return [dict(statement=a, seq=b, section=c or "", label=d or "", value=v) for a, b, c, d, v in rows]
+
+
+def _store(con, ticker, fy, proposals, proposer, model_used=None):
+    con.execute("DELETE FROM line_mappings WHERE ticker=? AND fiscal_year=? AND proposer=?", [ticker, fy, proposer])
+    for p in proposals:
+        con.execute("INSERT INTO line_mappings (ticker, fiscal_year, statement, seq, section, label, proposer, code, confidence, reason, model_used) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    [ticker, fy, p["statement"], p["seq"], p["section"], p["label"], proposer, p["code"], p["confidence"], p["reason"], model_used])
+
+
+def _arith(chart, lines, proposals):
+    mapping = {(p["statement"], p["seq"]): p["code"] for p in proposals if p["code"]}
+    values = {(l["statement"], l["seq"]): l["value"] for l in lines}
+    return check_subtotals(chart, mapping, values)
+
+
+def cmd_map_lines(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    chart = load_chart()
+    valid = {a["code"] for a in chart["accounts"]}
+    con = connect()
+    lines = _load_group_lines(con, ticker, fy)
+    if not lines:
+        raise SystemExit(f"No extracted lines for {ticker} FY{fy}. Run extract-pdf first.")
+    base = rule_propose(chart, lines)
+    _store(con, ticker, fy, base, "rule")
+    n_code = sum(1 for p in base if p["code"])
+    print(f"Rule baseline: {n_code} of {len(base)} lines mapped by code alone ({len(base) - n_code} left without a code)")
+    arith = _arith(chart, lines, base)
+    bad = [r for r in arith if r["status"] != "pass"]
+    print(f"  arithmetic: {len(arith) - len(bad)} of {len(arith)} printed subtotals equal the sum of their mapped parts")
+    for r in bad:
+        print(f"    DIFFERS {r['code']}: printed {r['printed']:,.0f}, mapped parts add to {r['computed']:,.0f} (difference {r['difference']:,.0f})")
+
+    model_props, model_name, notes = None, None, []
+    if args.model and args.model != "none":
+        by_stmt = {}
+        for p in base:
+            by_stmt.setdefault(p["statement"], []).append(p)
+        model_props, used_all = [], set()
+        for stmt, plist in by_stmt.items():
+            items = [dict(id=f"{p['statement']}:{p['seq']}", section=p["section"], label=p["label"]) for p in plist]
+            ans = ask(build_prompt(chart, stmt, items), args.model)
+            if ans.is_error:
+                raise SystemExit(f"The model call failed: {ans.error_text}\nIf it says 'Not logged in', sign in as described in chat.")
+            used_all |= verify_model(ans, args.model)            # stops the run if a different model answered
+            got, n = parse_proposals(ans.text, valid, {i["id"] for i in items})
+            notes += n
+            ids = {x["id"]: x for x in got}
+            for p in plist:
+                x = ids.get(f"{p['statement']}:{p['seq']}")
+                model_props.append({**{k: p[k] for k in ("statement", "seq", "section", "label")}, "proposer": args.model,
+                                    "code": x["code"] if x else None, "confidence": (x or {}).get("confidence"), "reason": (x or {}).get("reason", "no answer")})
+        model_name = ", ".join(sorted(used_all))
+        _store(con, ticker, fy, model_props, args.model, model_name)
+        print(f"\n{args.model}: answered by {model_name} (verified from the usage report)")
+
+    # compare and write the review sheet
+    out_dir = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    base_by = {(p["statement"], p["seq"]): p for p in base}
+    rows_disagree, rows_open = [], []
+    agree = 0
+    for p in base:
+        k = (p["statement"], p["seq"])
+        m = next((x for x in (model_props or []) if (x["statement"], x["seq"]) == k), None)
+        if m is None:
+            if p["code"] is None:
+                rows_open.append(p)
+            continue
+        if p["code"] == m["code"]:
+            agree += 1
+        elif p["code"] is None and m["code"] is None:
+            rows_open.append(p)
+        else:
+            rows_disagree.append((p, m))
+    lines_md = [f"# Mapping review: {ticker} FY{fy}", "",
+                f"- Lines (Group, current year): {len(lines)}",
+                f"- Rule baseline: {n_code} mapped by code alone, arithmetic check {len(arith) - len(bad)}/{len(arith)} printed subtotals reproduced"]
+    if model_props is not None:
+        lines_md += [f"- {args.model} (answered by {model_name}): agrees with the baseline on {agree}, disagrees on {len(rows_disagree)}", ""]
+        arith_m = _arith(chart, lines, [m for m in model_props if m["code"]])
+        bad_m = [r for r in arith_m if r["status"] != "pass"]
+        lines_md += [f"- Arithmetic check on the model's own mapping: {len(arith_m) - len(bad_m)}/{len(arith_m)} printed subtotals reproduced"]
+        if notes:
+            lines_md += ["- Notes: " + "; ".join(notes)]
+    lines_md += ["", "## For you to decide", "", "| Statement | Line | Section | Label | Rule says | Model says | Why (model) |", "|---|---|---|---|---|---|---|"]
+    for p, m in rows_disagree:
+        lines_md.append(f"| {p['statement']} | {p['seq']} | {p['section'][:24]} | {p['label'][:46]} | {p['code'] or '-'} | {m['code'] or '-'} | {(m['reason'] or '')[:60]} |")
+    for p in rows_open:
+        lines_md.append(f"| {p['statement']} | {p['seq']} | {p['section'][:24]} | {p['label'][:46] or '(blank)'} | - | - | {p['reason'][:60]} |")
+    if bad:
+        lines_md += ["", "## Printed subtotals that the rule mapping does not reproduce", ""]
+        lines_md += [f"- {r['name']}: printed {r['printed']:,.0f}, parts add to {r['computed']:,.0f}" for r in bad]
+    (out_dir / "mapping_review.md").write_text("\n".join(lines_md) + "\n")
+    if model_props is not None:
+        print(f"  agrees with the rule baseline on {agree} lines; disagrees on {len(rows_disagree)}; no code from either on {len(rows_open)}")
+        print(f"  arithmetic on the model's mapping: {len(arith_m) - len(bad_m)} of {len(arith_m)} printed subtotals reproduced")
+        for p, m in rows_disagree[:15]:
+            print(f"    DISAGREE [{p['statement']}] {p['label'][:40]!r}: rule={p['code']} {args.model}={m['code']}")
+    print(f"\nReview sheet: {out_dir / 'mapping_review.md'}")
+
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
@@ -144,6 +267,14 @@ def main() -> None:
     x.set_defaults(func=cmd_extract_pdf)
     k = sub.add_parser("chart-check", help="Validate the chart of accounts and show which printed labels it recognises")
     k.set_defaults(func=cmd_chart_check)
+    mc = sub.add_parser("model-check", help="Prove which model really answers (default: haiku)")
+    mc.add_argument("--model", default="haiku")
+    mc.set_defaults(func=cmd_model_check)
+    ml = sub.add_parser("map-lines", help="Map a company-year's printed lines to the chart of accounts")
+    ml.add_argument("ticker")
+    ml.add_argument("fy", help="e.g. FY2025")
+    ml.add_argument("--model", default="none", help="haiku to also ask the model (needs the one-time sign-in); default: rules only")
+    ml.set_defaults(func=cmd_map_lines)
     args = p.parse_args()
     args.func(args)
 

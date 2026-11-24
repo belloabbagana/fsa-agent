@@ -118,3 +118,20 @@ CREATE TABLE IF NOT EXISTS integrity_checks (
     status        VARCHAR NOT NULL,      -- pass | fail
     checked_at    TIMESTAMP DEFAULT current_timestamp
 );
+
+-- Which chart-of-accounts code each printed line maps to. Two independent proposers (a rule baseline and a model)
+-- are compared; disagreements and unmapped lines go to the analyst. Nothing is 'approved' without the analyst.
+CREATE TABLE IF NOT EXISTS line_mappings (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    statement     VARCHAR NOT NULL,
+    seq           INTEGER NOT NULL,
+    section       VARCHAR,
+    label         VARCHAR,
+    proposer      VARCHAR NOT NULL,      -- rule | haiku | analyst
+    code          VARCHAR,               -- chart account code; NULL = no suggestion
+    confidence    VARCHAR,               -- high | medium | low (model) / exact | section (rule)
+    reason        VARCHAR,
+    model_used    VARCHAR,               -- the model that actually answered (from the usage report), never the one requested
+    proposed_at   TIMESTAMP DEFAULT current_timestamp
+);
