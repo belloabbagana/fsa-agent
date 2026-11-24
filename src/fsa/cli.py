@@ -11,6 +11,7 @@ from fsa.extract.pdf_statements import extract_statements
 from fsa.ingest.inbox import process_inbox
 from fsa.ingest.ngnmarket import load_export
 from fsa.ingest.ngnmarket import sha256_of
+from fsa.map.chart import coverage, load_chart, validate_chart
 from fsa.validate.statements import run_comparatives, run_identities, run_reconciliation
 from fsa.warehouse.db import ROOT, connect
 
@@ -112,6 +113,21 @@ def cmd_extract_pdf(args) -> None:
         if st.startswith("differs") or st.startswith("not_comparable ("):
             print(f"  {st:16s} {metric}: PDF {pv}, provider {prv}, difference {diff}")
 
+def cmd_chart_check(args) -> None:
+    chart = load_chart()
+    problems = validate_chart(chart)
+    accounts = chart["accounts"]
+    print(f"Chart v{chart['version']}: {len(accounts)} accounts "
+          f"({sum(1 for a in accounts if a['kind'] == 'line')} lines, {sum(1 for a in accounts if a['kind'] == 'subtotal')} subtotals)")
+    print("Well formed." if not problems else "Problems:\n  " + "\n  ".join(problems))
+    con = connect()
+    seen, unknown = coverage(con, chart)
+    total = len(seen)
+    print(f"\nPrinted labels in the extracted reports: {total} distinct (after ignoring spacing and broken ligatures)")
+    print(f"  recognised by the chart: {total - len(unknown)}   not yet recognised: {len(unknown)}")
+    for st, label, where in sorted(unknown):
+        print(f"    [{st}] {label[:70]}   ({where})")
+
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
@@ -126,6 +142,8 @@ def main() -> None:
     x.add_argument("ticker")
     x.add_argument("fy", help="e.g. FY2025")
     x.set_defaults(func=cmd_extract_pdf)
+    k = sub.add_parser("chart-check", help="Validate the chart of accounts and show which printed labels it recognises")
+    k.set_defaults(func=cmd_chart_check)
     args = p.parse_args()
     args.func(args)
 
