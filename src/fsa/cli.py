@@ -15,6 +15,7 @@ from fsa.map.chart import coverage, load_chart, validate_chart
 from fsa.map.model_proposer import WrongModelError, ask, build_prompt, model_check, parse_proposals, verify_model
 from fsa.map.finalize import finalize, load_decisions, signed_off
 from fsa.map.rules_mapper import propose as rule_propose
+from fsa.analyse import comps
 from fsa.analyse import ratios as rat
 from fsa.classify import draft as gdraft
 from fsa.report import disclosures as disc
@@ -364,6 +365,59 @@ def cmd_gics_sync(args) -> None:
     for r in con.execute("SELECT ticker, gics_industry, gics_sub_industry FROM companies ORDER BY gics_industry NULLS LAST, ticker").fetchall():
         print("  ", r)
 
+def cmd_comps(args) -> None:
+    chart, con, rules = load_chart(), connect(), rat.load_rules()
+    a = comps.compute_all(con, chart, rules)
+    b = comps.stats_and_positions(con)
+    print(f"Comparison ratios: {a['rows']} values for {a['companies']} companies; statistics for {b['industries']} industries.")
+    rows = con.execute("""SELECT ticker, fiscal_year, position, count(*) FROM peer_position GROUP BY ALL ORDER BY 1,2,3""").fetchall()
+    for t, fy, pos, n in rows:
+        print(f"  {t} FY{fy}: {pos} x{n}")
+
+
+def cmd_comps_show(args) -> None:
+    ticker, fy = args.ticker, int(args.fy.upper().replace("FY", ""))
+    con = connect()
+    ind = con.execute("SELECT gics_industry FROM companies WHERE ticker=?", [ticker]).fetchone()[0]
+    mem = [r[0] for r in con.execute("SELECT ticker FROM companies WHERE gics_industry=? ORDER BY ticker", [ind]).fetchall()]
+    unchecked = [r[0] for r in con.execute("SELECT ticker FROM companies WHERE gics_industry=? AND ticker<>? AND conflict_check<>'pass'", [ind, ticker]).fetchall()]
+    lines = [f"# Industry comparison: {ticker} FY{fy} vs {ind}", ""]
+    if unchecked:
+        lines += [f"> **INTERNAL DRAFT: not for publication.** {len(unchecked)} peer(s) have no conflict check recorded ({', '.join(unchecked)}). Peer names and values must stay internal until each is recorded as pass.", ""]
+    lines += [f"Group: {len(mem)} companies ({', '.join(mem)}). All figures from NGN Market data for every company (same definitions); the audited-basis figure for {ticker} is shown for reference. "
+              "'Small peer set' means fewer than 5 peers, so the median is indicative. Position says where the number sits, not whether that is good or bad.", ""]
+    audited = {r: (v, u) for r, v, u in con.execute("SELECT ratio_id, value, unit FROM ratios WHERE ticker=? AND fiscal_year=? AND status='ok'", [ticker, fy]).fetchall()}
+    cats = dict(con.execute("SELECT DISTINCT ratio_id, category FROM ratios").fetchall())
+    cur_cat = None
+    rows = con.execute("""SELECT p.ratio_id, p.value, p.peer_n, p.peer_median, p.peer_min, p.peer_max, p.position, p.small_set, r.unit
+                          FROM peer_position p JOIN (SELECT DISTINCT ratio_id, unit FROM comparison_ratios) r USING (ratio_id)
+                          WHERE p.ticker=? AND p.fiscal_year=?""", [ticker, fy]).fetchall()
+    rows.sort(key=lambda x: (cats.get(x[0], ""), x[0]))
+    lines += ["| Ratio | " + ticker + " (comparison basis) | Audited basis | Peers (n) | Peer median | Peer range | Position |", "|---|---|---|---|---|---|---|"]
+    def f(v, u):
+        return "N/M" if v is None else {"pct": f"{v:,.1f}%", "x": f"{v:,.2f}x", "days": f"{v:,.0f} d"}.get(u, f"{v:,.2f}")
+    cur_cat = None
+    for rid, v, pn, med, mn, mx, pos, small, unit in rows:
+        if cats.get(rid) != cur_cat:
+            cur_cat = cats.get(rid)
+            lines.append(f"| **{(cur_cat or '').replace('_', ' ')}** | | | | | | |")
+        a = audited.get(rid)
+        if v is None:
+            lines.append(f"| {rid.replace('_', ' ')} | N/M | {f(a[0], unit) if a else 'N/M'} | - | - | - | not meaningful |")
+        else:
+            lines.append(f"| {rid.replace('_', ' ')} | {f(v, unit)} | {f(a[0], unit) if a else 'N/M'} | {pn if pn is not None else '-'}{' (small set)' if small and pn else ''} | "
+                         f"{f(med, unit)} | {f(mn, unit)} to {f(mx, unit)} | {pos} |")
+    why = con.execute("SELECT ratio_id, reason FROM comparison_ratios WHERE ticker=? AND fiscal_year=? AND status='N/M' ORDER BY 1", [ticker, fy]).fetchall()
+    if why:
+        lines += ["", "### Why some ratios are not meaningful on the comparison basis", ""] + [f"- {r.replace('_', ' ')}: {reason}" for r, reason in why]
+    out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "peer_comparison.md").write_text("\n".join(lines) + "\n")
+    n_ok = sum(1 for r in rows if r[1] is not None)
+    print(f"{ticker} FY{fy}: {n_ok} of {len(rows)} ratios comparable; wrote {out / 'peer_comparison.md'}")
+    if args.show:
+        print("\n".join(lines))
+
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="fsa")
@@ -400,6 +454,10 @@ def main() -> None:
     dg.set_defaults(func=cmd_draft_gics)
     gs = sub.add_parser("gics-sync", help="Load the APPROVED classifications into the database")
     gs.set_defaults(func=cmd_gics_sync)
+    cp = sub.add_parser("comps", help="Compute industry comparison ratios, statistics and peer positions")
+    cp.set_defaults(func=cmd_comps)
+    cs = sub.add_parser("comps-show", help="Write the peer comparison for a core company-year")
+    cs.add_argument("ticker"); cs.add_argument("fy"); cs.add_argument("--show", action="store_true"); cs.set_defaults(func=cmd_comps_show)
     args = p.parse_args()
     args.func(args)
 

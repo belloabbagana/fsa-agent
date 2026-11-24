@@ -1,0 +1,26 @@
+# INDUSTRY COMPARISON RULES (draft v0.1 by Claude, for Bello to decide)
+#
+# What the comparison does: for each GICS industry, every ratio in rules/ratios.yaml is computed for every company from the
+# NGN Market data (same data, same definitions, same rounding for everyone), then summarised (count, median, quartiles, range).
+# Each core company is then placed against its PEERS (the other companies in its industry): above, near or below.
+# Ratios that need a line NGN Market does not provide are not meaningful for that company (never guessed).
+#
+# DECISIONS FOR YOU:
+#  1. POSITION RULE. With 5+ peers: below the first quartile = below, above the third = above, otherwise near.
+#     With fewer (our groups have 2 and 4): compare with the peer median and call it near if within +/-15% of the median
+#     (absolute difference for ratios whose median is near zero). One peer only is shown but marked indicative.
+#  2. WORDS. "Above/near/below" says where the number sits, never whether that is good or bad: why comes from the findings.
+#  3. SMALL GROUPS. Counts are always shown. A group of fewer than 5 is marked "small peer set"; medians are indicative.
+#     Regional or emerging-market industry data (e.g. Damodaran) is the planned supplement and is not loaded yet.
+#  4. PEERS UNCHECKED. A peer with no conflict check recorded can appear in internal drafts only; named peers are not published.
+#  5. VARIANTS used for every company so definitions match (provider data has no owners' split, lease liabilities, or depreciation):
+#     ROE on total equity, ROIC and net debt to equity excluding leases, dividend payout on total profit.
+#     EBITDA-based ratios are therefore not meaningful in this comparison (the audited-basis column still shows them for core companies).
+version: "0.1-draft"
+position: {min_n_for_quartiles: 5, near_band_pct: 15, abs_band_when_median_near_zero: 0.5}
+years: [2023, 2024, 2025]
+overrides:
+  roe:                   {formula: "PL_PROFIT_FOR_YEAR / avg(BS_TOTAL_EQUITY) * 100", nm_if: ["avg(BS_TOTAL_EQUITY) <= 0"], note: "total equity: the provider does not split owners' equity"}
+  roic:                  {formula: "NOPAT / avg(BS_TOTAL_EQUITY + DEBT_GROSS - BS_CASH) * 100", nm_if: ["avg(BS_TOTAL_EQUITY + DEBT_GROSS - BS_CASH) <= 0"], note: "invested capital excludes lease liabilities (not provided)"}
+  net_debt_to_equity:    {formula: "(DEBT_GROSS - BS_CASH) / BS_TOTAL_EQUITY", note: "excludes lease liabilities (not provided)"}
+  dividend_payout_cash:  {formula: "-CF_DIVIDENDS_PAID / PL_PROFIT_FOR_YEAR * 100", nm_if: ["PL_PROFIT_FOR_YEAR <= 0"], note: "total profit: the owners' share is not provided"}

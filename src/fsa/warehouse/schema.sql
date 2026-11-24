@@ -177,3 +177,35 @@ CREATE TABLE IF NOT EXISTS ratios (
     rules_version VARCHAR,
     computed_at   TIMESTAMP DEFAULT current_timestamp
 );
+
+-- Industry comparison. Every company in a group is computed from the SAME provider data, so definitions and rounding match.
+CREATE TABLE IF NOT EXISTS comparison_ratios (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    ratio_id      VARCHAR NOT NULL,
+    unit          VARCHAR,
+    value         DOUBLE,
+    status        VARCHAR NOT NULL,      -- ok | N/M
+    reason        VARCHAR
+);
+CREATE TABLE IF NOT EXISTS industry_stats (
+    industry      VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    ratio_id      VARCHAR NOT NULL,
+    n             INTEGER NOT NULL,      -- companies with a meaningful value
+    n_members     INTEGER NOT NULL,      -- companies in the industry
+    median        DOUBLE, q1 DOUBLE, q3 DOUBLE, minimum DOUBLE, maximum DOUBLE
+);
+CREATE TABLE IF NOT EXISTS peer_position (
+    ticker        VARCHAR NOT NULL,
+    fiscal_year   INTEGER NOT NULL,
+    ratio_id      VARCHAR NOT NULL,
+    value         DOUBLE,
+    peer_n        INTEGER,
+    peer_median   DOUBLE,
+    peer_min      DOUBLE,
+    peer_max      DOUBLE,
+    position      VARCHAR NOT NULL,      -- above | near | below | no peers | not meaningful
+    method        VARCHAR,
+    small_set     BOOLEAN
+);

@@ -26,7 +26,8 @@ def load_rules(path=RULES_PATH) -> dict:
 
 
 class Evaluator:
-    def __init__(self, cur: dict, prior: dict | None, metrics: dict, ratios_done: dict, known_codes: set):
+    def __init__(self, cur: dict, prior: dict | None, metrics: dict, ratios_done: dict, known_codes: set, strict: bool = False):
+        self.strict = strict                                   # strict: a code the data source did not provide is not meaningful
         self.vals = {"cur": cur, "prior": prior}
         self.metrics, self.ratios, self.known = metrics, ratios_done, known_codes
         self.cache, self.trace = {}, {}
@@ -58,6 +59,8 @@ class Evaluator:
             side = self.vals[period]
             if side is None:
                 raise NotMeaningful("no opening balance available")
+            if self.strict and n not in side:
+                raise NotMeaningful(f"{n} is not provided by the data source for this company and year")
             v = side.get(n, 0.0)                                 # a line the company does not print is structurally nil
             self.trace[f"{n}[{period}]"] = round(v, 3)
             return v
@@ -121,28 +124,34 @@ def period_values(con, chart: dict, ticker: str, fy: int, period_end: date) -> d
     return out
 
 
-def compute(con, chart: dict, rules: dict, ticker: str, fy: int) -> list[dict]:
-    cur = period_values(con, chart, ticker, fy, date(fy, 12, 31))
-    if cur is None:
-        raise SystemExit(f"No settled mapping for {ticker} FY{fy}. Run finalize-mapping first.")
-    prior = period_values(con, chart, ticker, fy, date(fy - 1, 12, 31))
+def run_ratios(rules: dict, chart: dict, cur: dict, prior: dict | None, strict: bool = False, overrides: dict | None = None) -> list[dict]:
     known = {a["code"] for a in chart["accounts"]}
     done: dict = {}
     results = []
     for r in rules["ratios"]:
-        ev = Evaluator(cur, prior, rules["metrics"], done, known)
+        ov = (overrides or {}).get(r["id"], {})
+        formula, conditions = ov.get("formula", r["formula"]), ov.get("nm_if", r.get("nm_if", []))
+        ev = Evaluator(cur, prior, rules["metrics"], done, known, strict)
         res = {"ratio_id": r["id"], "category": r.get("category"), "unit": r.get("unit"), "value": None, "status": "ok", "reason": ""}
         try:
-            for cond in r.get("nm_if", []):
+            for cond in conditions:
                 if ev.ev(ast.parse(cond, mode="eval").body):
                     raise NotMeaningful(cond.replace("<=", "is not above").replace(">=", "is not below"))
-            res["value"] = ev.ev(ast.parse(r["formula"], mode="eval").body)
+            res["value"] = ev.ev(ast.parse(formula, mode="eval").body)
         except NotMeaningful as e:
             res.update(status="N/M", reason=str(e))
         res["inputs"] = json.dumps(ev.trace, sort_keys=True)
         done[r["id"]] = res
         results.append(res)
     return results
+
+
+def compute(con, chart: dict, rules: dict, ticker: str, fy: int) -> list[dict]:
+    cur = period_values(con, chart, ticker, fy, date(fy, 12, 31))
+    if cur is None:
+        raise SystemExit(f"No settled mapping for {ticker} FY{fy}. Run finalize-mapping first.")
+    prior = period_values(con, chart, ticker, fy, date(fy - 1, 12, 31))
+    return run_ratios(rules, chart, cur, prior)
 
 
 def save(con, ticker, fy, results, version) -> None:

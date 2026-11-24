@@ -1,0 +1,45 @@
+# HOW NGN MARKET'S LINES MAP TO THE CHART OF ACCOUNTS (draft by Claude, for Bello to review).
+# Used only for the INDUSTRY COMPARISON, where every company in a group, including the subject, is computed from the same
+# provider data so that definitions and rounding are identical. The audited-basis ratios are shown beside them.
+# NGN Market gives subtotals directly, so each metric maps to ONE chart account (a subtotal where it is one).
+# Signs: NGN Market shows costs, interest, tax, capex and dividends as positive amounts; the chart keeps them negative as
+# printed, so those lines are flipped (sign: -1). Checked for FY2022 onward against the audited reports (earlier years are
+# inconsistent in the provider data and are not used). A negative tax expense is a genuine tax credit.
+# A chart account with no entry here is NOT PROVIDED: a ratio that needs it is not meaningful for that company.
+# Amounts are N (full units) and are converted to N millions.
+map:
+  PL_REVENUE:                   {metric: "Revenue"}
+  PL_COST_OF_SALES:             {metric: "Cost of Revenue", sign: -1}
+  PL_GROSS_PROFIT:              {metric: "Gross Profit"}
+  PL_OPERATING_PROFIT:          {metric: "Operating Income"}
+  PL_FINANCE_COSTS:             {metric: "Interest Expense", sign: -1}
+  PL_FINANCE_INCOME:            {metric: "Interest & Investment Income"}
+  PL_PROFIT_BEFORE_TAX:         {metric: "Pretax Income"}
+  PL_INCOME_TAX:                {metric: "Income Tax Expense", sign: -1}
+  PL_PROFIT_FOR_YEAR:           {metric: "Net Income"}
+  BS_TOTAL_ASSETS:              {metric: "Total Assets"}
+  BS_TOTAL_CURRENT_ASSETS:      {metric: "Current Assets"}
+  BS_CASH:                      {metric: "Cash & Equivalents"}
+  BS_TRADE_RECEIVABLES:         {metric: "Receivables"}
+  BS_INVENTORIES:               {metric: "Inventory"}
+  BS_TOTAL_NC_ASSETS:           {metric: "Non-current Assets"}
+  BS_PPE:                       {metric: "Property, Plant & Equipment"}
+  BS_INTANGIBLES:               {metric: "Intangible Assets"}
+  BS_TOTAL_LIABILITIES:         {metric: "Total Liabilities"}
+  BS_TOTAL_CURRENT_LIABILITIES: {metric: "Current Liabilities"}
+  BS_TRADE_PAYABLES:            {metric: "Accounts Payable"}
+  BS_BORROWINGS_C:              {metric: "Short-term Debt"}
+  BS_BORROWINGS_NC:             {metric: "Long-term Debt"}
+  BS_TOTAL_NC_LIABILITIES:      {metric: "Non-current Liabilities"}
+  BS_TOTAL_EQUITY:              {metric: "Shareholders' Equity"}
+  BS_SHARE_CAPITAL:             {metric: "Share Capital"}
+  BS_RETAINED_EARNINGS:         {metric: "Retained Earnings"}
+  CF_OPERATING:                 {metric: "Operating Cash Flow"}
+  CF_INVESTING:                 {metric: "Investing Cash Flow"}
+  CF_FINANCING:                 {metric: "Financing Cash Flow"}
+  CF_CAPEX_PPE:                 {metric: "Capital Expenditure", sign: -1}
+  CF_DIVIDENDS_PAID:            {metric: "Dividends Paid", sign: -1}
+# Accounts taken as nil, with the reason (never silently):
+assume_zero:
+  BS_BANK_OVERDRAFT: "NGN Market's short-term debt already includes overdrafts (checked for Dangote and Presco against the audited reports), so the separate overdraft line is nil here."
+  CF_CAPEX_INTANGIBLES: "NGN Market's capital expenditure is property, plant and equipment only (checked for Dangote and Presco); intangible capex is not separated."

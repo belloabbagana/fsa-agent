@@ -201,6 +201,25 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
     if rounded[1] and unit == "NGN_thousand" and rounded[0] == rounded[1]:
         add("third_party", "note", "The third-party provider stores this company's figures rounded to whole millions of naira, while the audited report is in thousands; differences below ₦1m are treated as rounding.")
 
+    # ---- the peer comparison ----
+    pp = con.execute("SELECT count(*), max(peer_n), bool_or(small_set) FROM peer_position WHERE ticker=? AND fiscal_year=? AND position NOT IN ('not meaningful')", [ticker, fy]).fetchone()
+    if pp and pp[0]:
+        ind = con.execute("SELECT gics_industry FROM companies WHERE ticker=?", [ticker]).fetchone()
+        peers = [r for r in con.execute("SELECT ticker, conflict_check FROM companies WHERE gics_industry=? AND ticker<>?", [ind[0], ticker]).fetchall()] if ind and ind[0] else []
+        add("peers", "note", f"Peer comparison, {ind[0] if ind else 'industry'}: {len(peers)} peer(s). All figures come from the same third-party data for every company in the group, including this one, so definitions and rounding match; "
+            "they are not audited figures, and ratios needing lines the provider does not give (such as depreciation, lease liabilities or owners' equity) are shown as not meaningful. Position says where a number sits against the peers, not whether that is good or bad.")
+        if pp[2]:
+            add("peers", "note", f"The peer set is small (at most {pp[1]} peers), so medians and positions are indicative only.")
+        unchecked = [t for t, c in peers if c != "pass"]
+        if unchecked:
+            add("peers", "important", f"{len(unchecked)} peer(s) have no conflict check recorded, so peer names and values are for internal use only and are not published until each is recorded as pass.")
+        for t, _ in peers:
+            ok = con.execute("SELECT count(*) FILTER (status='ok'), count(*) FROM comparison_ratios WHERE ticker=? AND fiscal_year=?", [t, fy]).fetchone()
+            if ok[1] == 0:
+                add("peers", "note", f"A peer has no data for FY{fy} in the third-party source, so it is left out of this year's comparison.")
+            elif ok[0] < 0.5 * max(1, con.execute("SELECT count(*) FILTER (status='ok') FROM comparison_ratios WHERE ticker=? AND fiscal_year=?", [ticker, fy]).fetchone()[0]):
+                add("peers", "note", f"A peer's third-party data for FY{fy} is mostly blank ({ok[0]} of {ok[1]} ratios computable), so it adds little to the comparison.")
+
     # ---- notes written by a person ----
     notes = yaml.safe_load(notes_path.read_text()) if notes_path.exists() else {}
     for n in (notes.get("general") or []):
