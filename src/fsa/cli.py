@@ -511,6 +511,36 @@ def cmd_write_findings(args) -> None:
     print(f"wrote {out / 'findings.md'}")
 
 
+def cmd_dupont(args) -> None:
+    from fsa.analyse import dupont as dp
+    chart, con, ratio_rules = load_chart(), connect(), rat.load_rules()
+    cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
+    targets = [(c["ticker"], fy) for c in cfg["companies"] if c.get("role") == "core" for fy in (2023, 2024, 2025)] if args.ticker == "all" else [(args.ticker, int(args.fy.upper().replace("FY", "")))]
+    model = args.model or yaml.safe_load((ROOT / "config" / "models.yaml").read_text())["write_analysis"]
+    for ticker, fy in targets:
+        company = next(c for c in cfg["companies"] if c["ticker"] == ticker)
+        if company.get("conflict_check") != "pass":
+            raise SystemExit(f"{ticker} has no conflict-check pass in config/companies.yaml (project rule 3).")
+        data = dp.build_company(con, chart, ratio_rules, ticker, fy)
+        if not data["years"]:
+            print(f"{ticker} FY{fy}: no ratios for the DuPont stages (run ./fsa ratios first)")
+            continue
+        out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+        old = out / "dupont.json"
+        words = None
+        if not args.no_model and data["changes"]:
+            prev = json.loads(old.read_text()).get("commentary") if old.exists() and not args.redo else None
+            words = prev if prev and prev.get("status") == "written" else dp.explain(data, model)
+        elif not data["changes"]:
+            words = None
+        data["commentary"] = words
+        (out / "dupont.json").write_text(json.dumps(data, indent=2, default=str))
+        (out / "dupont.md").write_text("\n".join([f"# DuPont analysis of ROE: {ticker} FY{fy}", ""] + dp.to_markdown(data, words)))
+        (out / "dupont_peers.md").write_text(dp.peers_markdown(dp.peer_table(con, company, cfg, fy)))
+        last = data["years"][-1]
+        print(f"{ticker} FY{fy}: ROE {last['roe']:.1f}% | " + ", ".join(f"{k} {v:.2f}" for k, v in last["legs"].items()) + (f" | commentary {words['status']}" if words else " | no commentary"))
+
+
 def cmd_read_auditor_report(args) -> None:
     from fsa.extract import auditor_report as aud
     cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
@@ -648,6 +678,8 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
+    dpn = sub.add_parser("dupont", help="Five-stage DuPont analysis of ROE with an exact split of each year's change, and a checked explanation")
+    dpn.add_argument("ticker"); dpn.add_argument("fy", nargs="?", default="FY0"); dpn.add_argument("--model", default=None); dpn.add_argument("--no-model", action="store_true"); dpn.add_argument("--redo", action="store_true"); dpn.set_defaults(func=cmd_dupont)
     ra = sub.add_parser("read-auditor-report", help="Read the auditor's report from the annual-report PDF (opinion, going concern, emphasis, KAMs), quotes verified by code")
     ra.add_argument("ticker"); ra.add_argument("fy", nargs="?", default="FY0"); ra.add_argument("--model", default=None); ra.add_argument("--no-model", action="store_true", help="skip the model that lists KAM titles")
     ra.set_defaults(func=cmd_read_auditor_report)

@@ -101,12 +101,13 @@ def build_report(con, chart, ratio_rules, company: dict, ticker: str, fy: int) -
     notes = json.loads((base / "disclosures.json").read_text()) if (base / "disclosures.json").exists() else []
     ratings = json.loads((base / "ratings.json").read_text()) if (base / "ratings.json").exists() else None
     auditor = json.loads((base / "auditor_report.json").read_text()) if (base / "auditor_report.json").exists() else None
+    dupont = json.loads((base / "dupont.json").read_text()) if (base / "dupont.json").exists() else None
     not_generated = {k: v for k, v in NOT_GENERATED.items() if ratings is None}
     return {
         "schema": "report.v1", "version": VERSION, "status": "draft", "generated_on": date.today().isoformat(),
         "ticker": ticker, "company": company["name"], "fiscal_year": fy, "amounts_unit": "N millions unless stated; nominal, Group",
         "disclaimer": "Educational analysis, not investment advice. Items are matters to examine, never accusations. No buy, sell or hold view is given.",
-        "not_generated": not_generated, "ratings": ratings, "auditor_report": auditor, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
+        "not_generated": not_generated, "ratings": ratings, "auditor_report": auditor, "dupont": dupont, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
         "findings": findings, "data_notes": notes,
         "inputs_missing": [name for name, ok in (("findings.json", (base / "findings.json").exists()), ("disclosures.json", (base / "disclosures.json").exists()), ("ratings.json", (base / "ratings.json").exists())) if not ok],
         "section_titles": layout["section_titles"],
@@ -154,6 +155,9 @@ def to_markdown(rep: dict) -> str:
         L += [f"## {letter}. {titles[letter]}", ""]
         if letter in rep["scorecards"]:
             L += _table(rep["scorecards"][letter])
+        if letter == "E" and rep.get("dupont"):
+            from fsa.analyse import dupont as dp
+            L += ["### Five-stage DuPont analysis of ROE", ""] + dp.to_markdown(rep["dupont"], rep["dupont"].get("commentary"))
         fs = [f for f in rep["findings"] if f["section"] == letter]
         if fs:
             L += ["**Items to examine in this section** (full text in section L)", ""] + [f"- {f['id']} · {f['materiality'].upper()} · {f['title']}" for f in fs] + [""]

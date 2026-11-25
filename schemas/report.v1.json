@@ -14,6 +14,7 @@
     "not_generated": {"type": "object"},
     "ratings": {"type": ["object", "null"]},
     "auditor_report": {"type": ["object", "null"]},
+    "dupont": {"type": ["object", "null"]},
     "scorecards": {"type": "object"},
     "data_notes": {"type": "array", "items": {"type": "object", "required": ["category", "severity", "text"]}},
     "findings": {
