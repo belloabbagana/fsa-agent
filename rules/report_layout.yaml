@@ -21,6 +21,14 @@ scorecards:
       - {label: ROE, expr: roe, unit: pct}
       - {label: ROA, expr: roa, unit: pct}
       - {label: ROIC, expr: roic, unit: pct}
+      - {label: "ROCE (pre-tax, on capital employed)", expr: roce, unit: pct}
+      - {label: Operating ROA, expr: operating_roa, unit: pct}
+      - {label: "DuPont: tax burden (profit / pre-tax profit)", expr: tax_burden, unit: x}
+      - {label: "DuPont: interest burden (pre-tax / operating profit)", expr: interest_burden, unit: x}
+      - {label: "DuPont: equity multiplier", expr: equity_multiplier, unit: x}
+      - {label: Administrative costs / revenue, expr: admin_cost_to_revenue, unit: pct}
+      - {label: Selling and distribution / revenue, expr: selling_distribution_to_revenue, unit: pct}
+      - {label: Finance costs / revenue, expr: finance_cost_to_revenue, unit: pct}
   C:
     title: Balance sheet scorecard
     rows:
@@ -56,6 +64,12 @@ scorecards:
       - {label: Days payable, expr: dpo, unit: days}
       - {label: Cash conversion cycle, expr: cash_conversion_cycle, unit: days}
       - {label: Asset turnover, expr: asset_turnover, unit: x}
+      - {label: Receivables turnover, expr: receivables_turnover, unit: x}
+      - {label: Inventory turnover, expr: inventory_turnover, unit: x}
+      - {label: Payables turnover, expr: payables_turnover, unit: x}
+      - {label: Working-capital turnover, expr: working_capital_turnover, unit: x}
+      - {label: Equity turnover, expr: equity_turnover, unit: x}
+      - {label: Invested-capital turnover, expr: invested_capital_turnover, unit: x}
       - {label: Effective tax rate, expr: effective_tax_rate, unit: pct}
       - {label: Dividend payout (cash), expr: dividend_payout_cash, unit: pct}
 # Sections with no scorecard rows of their own list the findings whose rule sits in that letter.

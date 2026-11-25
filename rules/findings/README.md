@@ -35,7 +35,7 @@ Rules with `kind: text` search the auditor's report and notes (qualified opinion
 restatement and accounting-policy notes). The engine must quote the passage, and code verifies the quote exists in the PDF before the finding is kept.
 Not yet built: they show as "not tested".
 
-## DECISIONS FOR YOU
+## DECISIONS FOR YOU (all five APPROVED as drafted by Bello, 25 Nov 2026)
 1. **Materiality scale**: the shares above. Stricter (e.g. high >= 5% of PBT) raises more high findings.
 2. **Thresholds** inside each rule (for example "receivables outgrow revenue by 10 points"). Each is a judgement. They are listed once per rule so you can change them.
 3. **Peer rules** (section K) use the peer median and need at least 2 peers; with so few peers they are always marked indicative and never rated high.

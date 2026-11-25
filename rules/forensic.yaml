@@ -8,7 +8,7 @@
 #
 # Formulas use chart-of-accounts codes and the same evaluator as rules/ratios.yaml (see that file's header). Ids are lower-case.
 #
-# DECISIONS FOR YOU:
+# DECISIONS FOR YOU (all eight APPROVED as drafted by Bello, 25 Nov 2026. Decision 4: the Beneish cut-offs were approved as drafted; they have NOT yet been checked against the paper by code or by Claude):
 #  1. YEAR-END, NOT AVERAGE, for the two published models. Your rule (balance sheet vs another statement = average) is applied
 #     everywhere else. Beneish and Altman were fitted on year-end balances with their own coefficients; averaging would change
 #     what the coefficients mean. So these use the models' original definitions. Sloan accruals (accruals_ratio in ratios.yaml)

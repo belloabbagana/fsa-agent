@@ -33,7 +33,7 @@
 # ---- DECISION LOG (Bello, 24 Nov 2026): all eight AGREED. Decision 1 refined as the rule above; applied to every ratio:
 #      cfo_to_current_liabilities and net_debt_to_ebitda now use the average balance; a year-end net debt / EBITDA is kept as a
 #      secondary ratio for covenant-style comparison.
-# ---- v0.2 (drafted by Claude, 24 Nov 2026, AWAITING Bello's approval): adds activity ratios (turnover forms of DSO/DIO/DPO, working-capital,
+# ---- v0.2 (drafted by Claude 24 Nov 2026; APPROVED by Bello 25 Nov 2026): adds activity ratios (turnover forms of DSO/DIO/DPO, working-capital,
 #      equity and invested-capital turnover) and performance ratios (ROCE, operating ROA, DuPont legs, cost-to-revenue ratios). No v0.1 ratio changed.
 version: "0.2"
 status: approved_by_analyst   # decisions agreed 24 Nov 2026; later changes need a new version

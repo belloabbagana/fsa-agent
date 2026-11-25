@@ -10,6 +10,9 @@
 #   - Levels are tried from worst to best; the first level whose `when` is true applies.
 #   - Every threshold is a judgement. Thresholds marked [NIGERIA] are in nominal naira, in a high-inflation, high-rate economy.
 version: 0.1-draft
+status: approved_by_analyst       # Bello approved the thresholds as drafted on 25 Nov 2026; later changes need a new version
+# Known sensitivities at approval (6 company-years): DANGCEM FY2024 liquidity is Weak by 0.01 (operating cash flow / current liabilities 0.39 vs the 0.4 line),
+# and that single pillar tips its Financial Health from Mixed to Weak. DANGCEM FY2023 leverage is Weak on interest cover alone (2.36 vs 2.5).
 
 # ------------------------------------------------------------------------------------------------------------------
 # 1. FINANCIAL HEALTH: Strong, Healthy, Mixed, Weak, Distressed.  Can it carry on and fund itself?

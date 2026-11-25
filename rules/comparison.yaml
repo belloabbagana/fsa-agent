@@ -5,7 +5,7 @@
 # Each core company is then placed against its PEERS (the other companies in its industry): above, near or below.
 # Ratios that need a line NGN Market does not provide are not meaningful for that company (never guessed).
 #
-# DECISIONS FOR YOU:
+# DECISIONS FOR YOU (all five APPROVED as drafted by Bello, 25 Nov 2026):
 #  1. POSITION RULE. With 5+ peers: below the first quartile = below, above the third = above, otherwise near.
 #     With fewer (our groups have 2 and 4): compare with the peer median and call it near if within +/-15% of the median
 #     (absolute difference for ratios whose median is near zero). One peer only is shown but marked indicative.
