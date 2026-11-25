@@ -9,6 +9,7 @@ dependencies = [
     "jsonschema>=4",
     "pdfplumber>=0.11.11",
     "pyyaml>=6.0",
+    "streamlit>=1.67.0",
 ]
 
 [dependency-groups]

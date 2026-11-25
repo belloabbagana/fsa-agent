@@ -496,7 +496,8 @@ def cmd_write_findings(args) -> None:
         cands = [c for c in cands if c["id"] in args.ids]
     done_path = out / "findings.json"
     done = {f["id"]: f for f in json.loads(done_path.read_text())} if done_path.exists() and (not args.redo or args.ids) else {}
-    todo = [c for c in cands if c["id"] not in done or done[c["id"]]["status"] != "written" or (args.redo and (not args.ids or c["id"] in args.ids))]
+    todo = [c for c in cands if c["id"] not in done or done[c["id"]]["status"] != "written" or done[c["id"]].get("title") != c["title"]
+            or (args.redo and (not args.ids or c["id"] in args.ids))]       # a finding whose rule title changed is stale and is rewritten
     if args.limit:
         todo = todo[: args.limit]
     print(f"{ticker} FY{fy}: {len(cands)} candidates at {args.min_materiality} or above; {len(todo)} to write with {model}; {len(done)} already kept")
@@ -509,6 +510,20 @@ def cmd_write_findings(args) -> None:
     ordered = [done[c2["id"]] for c2 in json.loads(cand_path.read_text()) if c2["id"] in done]
     (out / "findings.md").write_text(fwr.to_markdown(ordered, ticker, fy))
     print(f"wrote {out / 'findings.md'}")
+
+
+def cmd_export_viewer(args) -> None:
+    from fsa.app import data as appdata
+    written = appdata.export_viewer()
+    print(f"wrote {len(written)} viewer snapshot file(s) to app/snapshot: " + ", ".join(written))
+
+
+def cmd_app(args) -> None:
+    import os
+    import subprocess
+    env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), FSA_MODE=args.mode)
+    subprocess.run(["uv", "run", "streamlit", "run", str(ROOT / "app" / "streamlit_app.py"), "--server.port", str(args.port), "--server.headless", "true",
+                    "--browser.gatherUsageStats", "false"], env=env, cwd=ROOT)
 
 
 def cmd_scan_notes(args) -> None:
@@ -702,6 +717,10 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
+    ev = sub.add_parser("export-viewer", help="Build the safe public snapshot (two core companies, no peer or NGN Market content) in app/snapshot")
+    ev.set_defaults(func=cmd_export_viewer)
+    ap = sub.add_parser("app", help="Run the dashboard: analyst mode (full, local) or viewer mode (read-only snapshot)")
+    ap.add_argument("--mode", choices=["analyst", "viewer"], default="analyst"); ap.add_argument("--port", type=int, default=8501); ap.set_defaults(func=cmd_app)
     sn = sub.add_parser("scan-notes", help="Scan the notes to the accounts for restatements, errors and policy changes (rule A-05); quotes carry their page")
     sn.add_argument("ticker"); sn.add_argument("fy", nargs="?", default="FY0"); sn.set_defaults(func=cmd_scan_notes)
     lm = sub.add_parser("load-macro", help="Load the official USD/NGN series from data/raw/macro into the warehouse as a new vintage")

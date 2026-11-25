@@ -19,3 +19,9 @@ private/
 
 # Inbox for raw NGN Market CSV exports (third-party data, never published)
 companies financial reports/
+
+# Viewer snapshot: derived from audited filings, published only deliberately after the legal check (docs/plan.md)
+app/snapshot/
+
+# Local preview config (contains local paths)
+.claude/

@@ -1,3 +1,5 @@
 #!/bin/bash
 # Run the FSA Agent:  ./fsa <command>      e.g.  ./fsa ingest-inbox --dry-run
+# Some terminals do not have Homebrew or ~/.local/bin on PATH, which hides uv and gitleaks; add them here so ./fsa works from any terminal.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
 cd "$(dirname "$0")" && PYTHONPATH=src exec uv run python -m fsa.cli "$@"
