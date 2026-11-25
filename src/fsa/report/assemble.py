@@ -71,6 +71,36 @@ def scorecards(con, chart, ratio_rules, layout: dict, ticker: str, fy: int) -> d
     return out
 
 
+def peers_block(con, layout: dict, ticker: str, fy: int) -> dict | None:
+    """Analyst-only peer comparison: a few ratios per category, company and each peer on the same third-party basis.
+    A ratio is left out when the company's value or every peer's value is not meaningful (no empty comparisons)."""
+    cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
+    me = next((c for c in cfg["companies"] if c["ticker"] == ticker), None)
+    if not me:
+        return None
+    peers = [c for c in cfg["companies"] if c.get("role") == "peer" and c.get("industry_peer_set") == me.get("industry_peer_set") and c.get("conflict_check") == "pass"]
+    labels = {r["expr"]: r["label"] for g in layout["ratio_groups"].values() for r in g["rows"]}
+    val = lambda t, rid: (lambda r: r[0] if r else None)(con.execute(
+        "SELECT value FROM comparison_ratios WHERE ticker=? AND fiscal_year=? AND ratio_id=? AND status='ok'", [t, fy, rid]).fetchone())
+    groups = {}
+    for gname, ids in layout["peer_groups"].items():
+        rows = []
+        for rid in ids:
+            mine = val(ticker, rid)
+            theirs = {p["ticker"]: val(p["ticker"], rid) for p in peers}
+            pos = con.execute("SELECT peer_median, position, unit FROM peer_position p LEFT JOIN (SELECT DISTINCT ratio_id r, unit FROM comparison_ratios) u ON u.r=p.ratio_id "
+                              "WHERE ticker=? AND fiscal_year=? AND ratio_id=?", [ticker, fy, rid]).fetchone()
+            if mine is None or all(v is None for v in theirs.values()):
+                continue
+            unit = (pos[2] if pos else None) or next((r[0] for r in con.execute("SELECT unit FROM comparison_ratios WHERE ratio_id=? LIMIT 1", [rid]).fetchall()), "x")
+            rows.append({"ratio": rid, "label": labels.get(rid, rid.replace("_", " ")), "unit": unit, "company": mine, "peers": theirs,
+                         "median": pos[0] if pos else None, "position": pos[1] if pos else None})
+        if rows:
+            groups[gname] = rows
+    return {"fiscal_year": fy, "basis": "third-party data for every company, so definitions match; not audited figures",
+            "peers": [{"ticker": p["ticker"], "name": p["name"]} for p in peers], "groups": groups}
+
+
 def finding_record(f: dict) -> dict:
     """One finding as the JSON record the spec asks for (id, section, observation, numbers with sources, question, why, hypotheses, ...)."""
     written = f["status"] == "written"
@@ -109,6 +139,9 @@ def build_report(con, chart, ratio_rules, company: dict, ticker: str, fy: int) -
         "schema": "report.v1", "version": VERSION, "status": "draft", "generated_on": date.today().isoformat(),
         "ticker": ticker, "company": company["name"], "fiscal_year": fy, "amounts_unit": "N millions unless stated; nominal, Group",
         "disclaimer": "Educational analysis, not investment advice. Items are matters to examine, never accusations. No buy, sell or hold view is given.",
+        "statements": scorecards(con, chart, ratio_rules, {"years_shown": layout["years_shown"], "scorecards": layout["statements"]}, ticker, fy),
+        "ratio_groups": scorecards(con, chart, ratio_rules, {"years_shown": layout["years_shown"], "scorecards": layout["ratio_groups"]}, ticker, fy),
+        "peers": peers_block(con, layout, ticker, fy),
         "not_generated": not_generated, "ratings": ratings, "auditor_report": auditor, "dupont": dupont, "usd_view": usd, "scorecards": scorecards(con, chart, ratio_rules, layout, ticker, fy),
         "findings": findings, "data_notes": notes,
         "inputs_missing": [name for name, ok in (("findings.json", (base / "findings.json").exists()), ("disclosures.json", (base / "disclosures.json").exists()), ("ratings.json", (base / "ratings.json").exists())) if not ok],

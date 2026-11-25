@@ -29,6 +29,10 @@ class Tester:
     def __init__(self, ctx, extra_inputs: dict):
         self.cur, self.prior, self.now, self.known, self.extra, self.lookup = ctx
         self.extra = dict(self.extra) | extra_inputs
+        self.last, self.seen = {}, {}
+
+    last: dict = {}
+    seen: dict = {}
 
     def add(self, **names):
         self.extra |= names
@@ -37,8 +41,12 @@ class Tester:
         """(True | False | None, reason). None means not tested."""
         ev = TriggerEvaluator(self.cur, self.prior, self.metrics, self.now, self.known, self.extra, self.lookup)
         try:
-            return bool(ev.ev(ast.parse(expr, mode="eval").body)), ""
+            ok = bool(ev.ev(ast.parse(expr, mode="eval").body))
+            self.last = {k: v for k, v in ev.used.items() if isinstance(v, (int, float))}      # the figures this test used, for plain-text explanations
+            self.seen |= self.last
+            return ok, ""
         except NotMeaningful as e:
+            self.last = {}
             return None, str(e)
 
     metrics: dict = {}
@@ -84,8 +92,9 @@ def rate_company_year(con, chart, ratio_rules, company_cfg: dict, ticker: str, f
     # 1. financial health
     fh, pillars = R["financial_health"], {}
     for name, p in fh["pillars"].items():
+        t.seen = {}
         label, untested, ran = first_level(t, p["levels"], "level")
-        pillars[name] = {"level": label if ran else None, "untested": untested, "why": p["why"]}
+        pillars[name] = {"level": label if ran else None, "untested": untested, "why": p["why"], "values": dict(t.seen)}
     counts = {lv: sum(p["level"] == lv for p in pillars.values()) for lv in SCORE}
     n_rated = sum(p["level"] is not None for p in pillars.values())
     t.add(n_critical=counts["critical"], n_weak=counts["weak"], n_strong=counts["strong"], n_rated=n_rated)
@@ -103,15 +112,18 @@ def rate_company_year(con, chart, ratio_rules, company_cfg: dict, ticker: str, f
         tested += ok is not None
         points += test["points"] if ok else 0
         results.append({"id": test["id"], "result": "not tested" if ok is None else ("adverse" if ok else "clear"), "points": test["points"] if ok else 0,
-                        "why": test["why"], **({"reason": why} if ok is None else {})})
+                        "why": test["why"], "values": dict(t.last), **({"reason": why} if ok is None else {})})
     t.add(points=points)
     label = first_level(t, eq["levels"], "rating")[0] if tested >= eq["min_tested"] else None
     out["earnings_quality"] = {"rating": label or "Not rated: insufficient data", "points": points, "tests_run": tested, "tests_total": len(eq["tests"]), "tests": results}
 
     # 3. forensic risk
     fr = R["forensic_risk"]
+    t.seen = {}
     label, untested, _ = first_level(t, fr["levels"], "rating")
-    out["forensic_risk"] = {"rating": label or "Not rated: insufficient data", "untested": untested, "note": fr["note_for_report"],
+    for name in ("flags_tripped", "beneish_m", "altman_z", "restated_lines", "later_restated_lines", "auditor_adverse"):      # every screen, for the explanation
+        t.test(f"{name} == {name}")
+    out["forensic_risk"] = {"rating": label or "Not rated: insufficient data", "untested": untested, "note": fr["note_for_report"], "values": dict(t.seen),
                             "red_not_assignable": "The auditor's report was not read or its opinion could not be classified, so Red cannot be assigned." if t.extra.get("auditor_adverse") is None else None,
                             "auditor_report_read": t.extra.get("auditor_adverse") is not None}
 

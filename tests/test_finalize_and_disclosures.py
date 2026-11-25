@@ -72,11 +72,12 @@ def test_disclosures_report_restatements_cash_definition_and_standard_notes(tmp_
     cats = {i["category"] for i in items}
     assert {"standard", "restatement", "cash_definition", "mapping"} <= cats
     cash = next(i for i in items if i["category"] == "cash_definition")
-    assert "nets overdrafts against cash" in cash["text"]                    # the difference equals the overdraft: explained
+    assert "bank overdraft, which the cash flow statement nets against cash" in cash["text"]                    # the difference equals the overdraft: explained
     rest = next(i for i in items if i["category"] == "restatement")
-    assert "821,080" in rest["text"] and "821,184" in rest["text"] and "not state the reason" in rest["text"]
+    assert "821,080" in rest["text"] and "821,184" in rest["text"] and "do not give the reason" in rest["text"]
     assert any("not investment advice" in i["text"] for i in items)
-    assert "Important" in D.to_markdown("T", 2025, items)
+    md = D.to_markdown("T", 2025, items)
+    assert "`Restatement` (needs attention)" in md and "| Tag | What it covers |" in md          # tag at the end of each note, key at the bottom
 
 
 def test_unlabelled_row_without_a_figure_is_not_an_open_decision():

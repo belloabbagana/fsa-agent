@@ -27,7 +27,7 @@ def test_sanitize_drops_peer_findings_notes_and_internal_inputs():
     out = appdata.sanitize(report(), CFG)
     assert [f["id"] for f in out["findings"]] == ["D-01"]
     assert [n["text"] for n in out["data_notes"]] == ["Audited figures."]
-    assert "inputs" not in out["ratings"]["data_quality"] and "peer" not in json.dumps(out["ratings"]).lower()
+    assert out["ratings"]["data_quality"]["inputs"] == {} and "peer" not in json.dumps(out["ratings"]).lower()
     assert "inputs_missing" not in out
 
 

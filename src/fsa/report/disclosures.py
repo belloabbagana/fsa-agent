@@ -15,6 +15,22 @@ from fsa.map.validate_mapping import account_totals, check_subtotals, computed
 from fsa.warehouse.db import ROOT
 
 NOTES_PATH = ROOT / "config" / "disclosure_notes.yaml"
+# Each note ends with a tag; the report prints this key under the notes.
+TAGS = {
+    "standard": ("Disclaimer", "How to read this analysis and where the figures come from."),
+    "restatement": ("Restatement", "Prior-year figures that changed between one annual report and the next."),
+    "filing_arithmetic": ("Filing arithmetic", "A total in the filing that does not equal the sum of its printed lines."),
+    "standardised_vs_printed": ("Layout difference", "A subtotal that differs between the company's layout and the standard layout used here."),
+    "cash_definition": ("Cash definition", "Differences in what counts as cash between statements."),
+    "basis": ("Accounting basis", "Accounting choices or events that affect how the figures should be read."),
+    "mapping": ("Mapping", "How printed lines were matched to the standard chart of accounts, and who approved it."),
+    "forensic": ("Forensic caveat", "Limits of the statistical screens used in the forensic section."),
+    "blank_cells": ("Blank cells", "Cells left blank in the filing; never read as zero."),
+    "pdf_quality": ("PDF quality", "Damaged text in the PDF and how the numbers were still confirmed."),
+    "third_party": ("Third-party data", "The cross-check against third-party market data (used to check and to compare, never to replace audited figures)."),
+    "peers": ("Peers", "How the peer comparison was built and its limits."),
+    "analyst_note": ("Analyst note", "A note written by the analyst."),
+}
 FACTOR_TO_MILLIONS = {"NGN_million": 1.0, "NGN_thousand": 0.001}
 
 
@@ -63,14 +79,16 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
         return accts[codes[0]]["name"] if len(codes) == 1 else label.replace(chr(0), "").replace("·", "")[:48]
 
     def add(category, severity, text, ref=None):
-        out.append({"category": category, "severity": severity, "text": text, "source_ref": ref})
+        out.append({"category": category, "severity": severity, "text": text, "source_ref": ref, "tag": TAGS.get(category, (category, ""))[0]})
 
     unit_word = {"NGN_million": "₦ millions", "NGN_thousand": "₦ thousands (shown here in ₦ millions)"}.get(unit, unit)
 
     # ---- standard disclaimers (always) ----
-    add("standard", "standard", "This is educational analysis, not investment advice. Items identified are matters to examine; they are not conclusions about the company's conduct or accounts, and no buy, sell or hold view is given.")
-    add("standard", "standard", f"Source: {doc}, the company's audited annual report for FY{fy}. Figures are the Group's, in {unit_word}. Numbers were extracted from the PDF by code, and every subtotal was re-added by code; no figure was typed or estimated by a model. Statements start on page(s): " + ", ".join(f"{k.replace('_', ' ')} p.{v}" for k, v in sorted(pages.items())) + ".")
-    add("standard", "standard", "Third-party market data (NGN Market) is used only to cross-check the audited figures and for peer comparison. It is not reproduced in this report; where it differs from the audited report, the audited report prevails.")
+    add("standard", "standard", "Educational analysis, not investment advice. Findings are items to examine, not conclusions, and no buy, sell or hold view is given.")
+    names = {"profit_or_loss": "income statement", "financial_position": "balance sheet", "cash_flows": "cash flow statement", "comprehensive_income": "comprehensive income"}
+    add("standard", "standard", f"Figures are the Group's, from the audited FY{fy} report ({unit_word}). Code extracted every number and re-added every subtotal; no figure was typed or estimated by a model. "
+        + "Statements: " + ", ".join(f"{names.get(k, k.replace('_', ' '))} p.{v}" for k, v in sorted(pages.items(), key=lambda kv: kv[1])) + ".")
+    add("standard", "standard", "Third-party market data is used only to cross-check the audited figures and to compare peers. Where it differs, the audited figure is used.")
 
     # ---- restatements: this report's comparatives vs the previous report ----
     rows = con.execute("""SELECT statement, replace(check_name,'comparative:',''), expected, actual FROM integrity_checks
@@ -83,26 +101,23 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
             if nm not in seen:
                 seen.add(nm)
                 top.append((nm, e, a))
-        top = top[:8]
-        parts = "; ".join(f"{nm}: {_m(e, unit)} then, {_m(a, unit)} now" for nm, e, a in top)
+        top = top[:3]
+        parts = "; ".join(f"{nm} {_m(e, unit)} to {_m(a, unit)}" for nm, e, a in top)
         add("restatement", "important",
-            f"Comparatives changed. In the FY{fy} report, {len(rows)} Group line(s) for FY{fy - 1} differ, beyond rounding, from what the FY{fy - 1} report showed. "
-            f"Largest: {parts}. The extracted statements do not state the reason; the notes to the FY{fy} report should be read.",
+            f"{len(rows)} FY{fy - 1} figures were changed in this report's comparatives. Largest: {parts}. The statements do not give the reason.",
             f"FY{fy} report pages {', '.join(str(p) for p in sorted(set(pages.values())))}; compared with the FY{fy - 1} report")
     later = con.execute("""SELECT count(*) FROM integrity_checks WHERE ticker=? AND fiscal_year=? AND check_name LIKE 'comparative:%' AND status='fail' AND entity='group'""",
                         [ticker, fy + 1]).fetchone()[0]
     if later:
         add("restatement", "important",
-            f"These figures were later restated. The FY{fy + 1} report shows {later} Group line(s) for FY{fy} that differ from this report's figures. "
-            f"Third-party data providers may already show the restated numbers; the figures in this report are as originally audited.",
+            f"{later} of these figures were changed later, in the FY{fy + 1} report. This report shows them as originally audited.",
             f"FY{fy + 1} report, comparative column")
 
     # ---- the filing's own arithmetic ----
     for st, ent, pend, name, exp, act in con.execute("""SELECT statement, entity, period_end, check_name, expected, actual FROM integrity_checks
             WHERE ticker=? AND fiscal_year=? AND status='fail' AND check_name NOT LIKE 'comparative:%' AND actual IS NOT NULL""", [ticker, fy]).fetchall():
         add("filing_arithmetic", "important",
-            f"As printed, the {st.replace('_', ' ')} does not add up for {ent} {pend}: the check '{name.replace('_', ' ')}' shows a printed total of {_m(exp, unit)} against parts adding to {_m(act, unit)} (difference {_m(act - exp, unit)}). "
-            "This is how the filing prints it (for example a figure shown without its brackets); it is flagged, not corrected.",
+            f"The printed {st.replace('_', ' ')} ({ent}, {pend}) does not add up: the total is {_m(exp, unit)} but its lines add to {_m(act, unit)} (difference {_m(act - exp, unit)}). Flagged, not corrected.",
             f"{st.replace('_', ' ')} p.{pages.get(st, '?')}")
 
     # ---- standardised layout versus printed subtotals ----
@@ -115,11 +130,10 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
                 expl = ""
                 for code in ("PL_MONETARY_POSITION", "PL_FX_OPERATING", "PL_BIOLOGICAL_FV"):
                     if abs(abs(r["difference"]) - abs(totals.get(code, 0.0))) <= 2 and totals.get(code, 0.0):
-                        expl = (f" The difference equals the company's '{accts[code]['name'].lower()}' ({_m(totals[code], unit)}), which the company presents "
-                                f"inside this subtotal and the standardised layout places elsewhere (chart of accounts decision).")
+                        expl = f" The difference is the {accts[code]['name'].lower()}, which the company includes here and the standard layout shows separately."
                         break
                 add("standardised_vs_printed", "note",
-                    f"{r['name'].replace(' (standardised)', '')} as printed is {_m(r['printed'], unit)}; in the standardised layout it is {_m(r['computed'], unit)} (difference {_m(r['difference'], unit)}).{expl or ' The cause has not been identified; the statement should be examined.'}",
+                    f"{r['name'].replace(' (standardised)', '')} is {_m(r['printed'], unit)} as printed and {_m(r['computed'], unit)} in the standard layout.{expl or ' The cause has not been identified.'}",
                     "chart of accounts v" + chart.get("version", "?"))
 
         # ---- cash on the cash flow statement versus the balance sheet ----
@@ -128,61 +142,57 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
         bs_cash, overdraft = totals.get("BS_CASH"), totals.get("BS_BANK_OVERDRAFT")
         if closing_printed is not None and bs_cash is not None and abs(closing_printed - bs_cash) > 2:
             d = bs_cash - closing_printed
-            expl = (f" The difference equals the bank overdraft shown on the balance sheet ({_m(overdraft, unit)}), so the cash flow statement nets overdrafts against cash."
-                    if overdraft and abs(d - overdraft) <= 2 else " The notes (cash and cash equivalents) should be read for the reconciliation.")
+            expl = (" The difference is the bank overdraft, which the cash flow statement nets against cash."
+                    if overdraft and abs(d - overdraft) <= 2 else " The difference is not explained in the statements.")
             add("cash_definition", "note",
-                f"Cash at the end of the year is {_m(closing_printed, unit)} on the cash flow statement but {_m(bs_cash, unit)} on the balance sheet (difference {_m(d, unit)}).{expl} "
-                "Net debt in this report uses balance-sheet cash.", f"cash flows p.{pages.get('cash_flows', '?')}; financial position p.{pages.get('financial_position', '?')}")
+                f"Year-end cash is {_m(closing_printed, unit)} in the cash flow statement and {_m(bs_cash, unit)} on the balance sheet.{expl} Net debt here uses balance-sheet cash.", f"cash flows p.{pages.get('cash_flows', '?')}; financial position p.{pages.get('financial_position', '?')}")
 
         # ---- accounting treatments the reader should know about ----
         op = next((values.get((s, q)) for s, q, c, *_ in final if c == "PL_OPERATING_PROFIT"), None)
         if totals.get("PL_MONETARY_POSITION"):
-            add("basis", "note", f"The company applies inflation accounting (IAS 29): its net monetary position result is {_m(totals['PL_MONETARY_POSITION'], unit)}. The standardised layout shows it below operating profit.", f"profit or loss p.{pages.get('profit_or_loss', '?')}")
+            add("basis", "note", f"The company applies inflation accounting (IAS 29); its net monetary position result of {_m(totals['PL_MONETARY_POSITION'], unit)} is shown below operating profit here.", f"profit or loss p.{pages.get('profit_or_loss', '?')}")
         if totals.get("PL_FX_OPERATING"):
-            add("basis", "note", f"Foreign exchange gains or losses of {_m(totals['PL_FX_OPERATING'], unit)} are presented inside operating profit by the company. They are not operating performance in substance; the analyst-adjusted view moves them out.", f"profit or loss p.{pages.get('profit_or_loss', '?')}")
+            add("basis", "note", f"Operating profit includes foreign exchange gains or losses of {_m(totals['PL_FX_OPERATING'], unit)}, as the company presents it. They are not trading performance.", f"profit or loss p.{pages.get('profit_or_loss', '?')}")
         if totals.get("PL_BIOLOGICAL_FV"):
             share = f" ({totals['PL_BIOLOGICAL_FV'] / op:.0%} of printed operating profit)" if op else ""
             add("basis", "note", f"Operating profit includes a non-cash fair-value gain on biological assets of {_m(totals['PL_BIOLOGICAL_FV'], unit)}{share}.", f"profit or loss p.{pages.get('profit_or_loss', '?')}")
         if any(c == "PL_EPS_BASIC" and "kobo" in (lbl or "").lower() for _, _, c, _, _, lbl, *_ in final):
-            add("basis", "note", "Earnings per share is printed in kobo by this company; it is converted to naira (divided by 100) where compared with other companies.")
+            add("basis", "note", "Earnings per share is printed in kobo; it is divided by 100 to compare in naira.")
 
         if totals.get("CF_ACQUISITIONS"):
-            add("basis", "important", f"The cash flow statement shows an acquisition of a subsidiary in the year (net {_m(totals['CF_ACQUISITIONS'], unit)}). Year-on-year growth rates, working-capital changes and the forensic indices for this year mix organic and acquired amounts, and the opening balances may exclude the acquired business.", f"cash flows p.{pages.get('cash_flows', '?')}")
+            add("basis", "important", f"A subsidiary was acquired in the year (net cash {_m(totals['CF_ACQUISITIONS'], unit)}), so this year's growth rates, working-capital changes and forensic scores mix organic and acquired amounts.", f"cash flows p.{pages.get('cash_flows', '?')}")
 
         # ---- how lines were mapped ----
         from collections import Counter
         basis = Counter(r[3] for r in final)
         n_open = sum(1 for r in final if r[4] == "open")
         models = [m[0] for m in con.execute("SELECT DISTINCT model_used FROM line_mappings WHERE ticker=? AND fiscal_year=? AND model_used IS NOT NULL", [ticker, fy]).fetchall()]
-        txt = (f"Printed lines were mapped to the standard chart of accounts (v{chart.get('version', '?')}) by rules, with an independent second opinion from "
-               f"{', '.join(models) if models else 'no model'} (the model that answered was read from the usage report). "
-               f"Of {len(final)} lines: {basis.get('agreed', 0)} agreed by both, {basis.get('rule_only', 0)} by rule alone, {basis.get('rule_model_silent', 0)} by rule where the model gave no code, {basis.get('analyst_decision', 0)} settled by the analyst's decision, "
-               f"{basis.get('model_accepted', 0)} unlabelled totals accepted because the sum reproduces them, {basis.get('intermediate_total', 0)} unlabelled running totals not used, {n_open} still open. Model proposals can differ between runs, so every decision is recorded.")
+        settled = len(final) - n_open
+        txt = (f"{settled} of {len(final)} printed lines were matched to the standard chart of accounts: {basis.get('agreed', 0)} where rules and an independent model agreed, "
+               f"{basis.get('analyst_decision', 0)} by the analyst's decision, and the rest by rule or by totals that re-add exactly." + (f" {n_open} are still open." if n_open else ""))
         so = signed_off(ticker, fy)
         if n_open:
-            status = " Open lines may affect the figures; do not rely on them until they are settled."
+            status = " Figures that depend on open lines should not be relied on yet."
         elif so:
             same = str(so.get("chart_version")) == str(chart.get("version"))
-            status = (f" The mapping was signed off by the analyst ({so.get('approved_by')}) on {so.get('date')} against chart v{so.get('chart_version')}."
-                      + ("" if same else f" The chart has since changed to v{chart.get('version')}: a new sign-off is needed."))
+            status = (f" Signed off by the analyst on {so.get('date')}." + ("" if same else f" The chart has since changed, so a new sign-off is needed."))
         else:
-            status = " The mapping has not yet been signed off by the analyst."
+            status = " Not yet signed off by the analyst."
         add("mapping", "important" if (n_open or not so) else "note", txt + status)
 
     # ---- forensic indicators ----
     fcount = con.execute("SELECT count(*) FROM forensic_scores WHERE ticker=? AND fiscal_year=? AND status='ok'", [ticker, fy]).fetchone()[0]
     if fcount:
-        add("forensic", "important", "The forensic indicators in this report (Beneish M-score, Altman Z'' for emerging markets, and growth-gap tests) are statistical screens calibrated on other markets and decades. "
-            "They are items to examine, never findings, and are never read alone. Devaluation, high inflation, acquisitions and balance-sheet restatements move several of their inputs for reasons unrelated to manipulation or distress. "
-            "Each is shown with its drivers and against the company's own history and its peers.")
+        add("forensic", "important", "The forensic scores (Beneish M-score, Altman Z'' and growth-gap tests) are statistical screens built on other markets. "
+            "Devaluation, inflation and acquisitions move their inputs, so they are read only alongside the findings, never alone.")
 
     # ---- blank cells and damaged text ----
     blanks = con.execute("SELECT count(*), count(DISTINCT label), count(*) FILTER (entity='group'), count(*) FILTER (entity='company') FROM pdf_statement_lines WHERE ticker=? AND fiscal_year=? AND value_flag='blank_in_filing'", [ticker, fy]).fetchone()
     if blanks[0]:
-        add("blank_cells", "note", f"{blanks[0]} cell(s) across {blanks[1]} line(s) are left blank in the filing ({blanks[2]} in Group columns, {blanks[3]} in Company columns). A blank is treated as nothing printed, never as a reported zero; a printed dash is a reported nil.")
+        add("blank_cells", "note", f"{blanks[0]} cell(s) on {blanks[1]} line(s) are blank in the filing. A blank is read as not printed, never as zero; a printed dash is a reported nil.")
     dmg = con.execute("SELECT count(DISTINCT seq || statement) FROM pdf_statement_lines WHERE ticker=? AND fiscal_year=? AND (label LIKE '%·%' OR label LIKE '%' || chr(0) || '%')", [ticker, fy]).fetchone()[0]
     if dmg:
-        add("pdf_quality", "note", f"The PDF's text layer is damaged on {dmg} statement line(s) (dropped letters from broken ligatures, stray spaces inside words or numbers). Numbers were read by their position on the page and each statement was re-added by code to confirm them.")
+        add("pdf_quality", "note", f"The PDF text is damaged on {dmg} statement line(s) (lost letters, stray spaces). The numbers were read by position and every statement was re-added by code to confirm them.")
 
     # ---- third-party data comparison ----
     rec = con.execute("SELECT status, count(*) FROM reconciliation WHERE ticker=? AND fiscal_year=? GROUP BY status", [ticker, fy]).fetchall()
@@ -194,41 +204,41 @@ def generate(con, chart: dict, ticker: str, fy: int, notes_path=NOTES_PATH) -> l
         if counts.get("differs"):
             bits.append(f"{counts['differs']} differ")
         if counts.get("not_comparable"):
-            bits.append(f"{counts['not_comparable']} are the provider's own calculations or have an unclear definition and cannot be compared")
-        add("third_party", "note", f"NGN Market cross-check, FY{fy}: " + "; ".join(bits) + ".")
+            bits.append(f"{counts['not_comparable']} cannot be compared (the provider's own calculations or unclear definitions)")
+        add("third_party", "note", f"Cross-check with third-party data: " + "; ".join(bits) + ".")
         for metric, reason in con.execute("SELECT provider_metric, pdf_label FROM reconciliation WHERE ticker=? AND fiscal_year=? AND status='differs'", [ticker, fy]).fetchall():
-            add("third_party", "important", f"NGN Market's {metric} differs from the audited report ({reason}); the audited figure is used.")
+            add("third_party", "important", f"The third-party {metric} differs from the audited figure ({reason}); the audited figure is used.")
         for metric, label in con.execute("SELECT provider_metric, pdf_label FROM reconciliation WHERE ticker=? AND fiscal_year=? AND status='not_comparable' AND pdf_label LIKE 'derived:%unclear%'", [ticker, fy]).fetchall():
-            add("third_party", "note", f"NGN Market's {metric} could not be matched: {label.replace('derived: ', '')}.")
+            add("third_party", "note", f"The third-party {metric} has an unclear definition and could not be matched.")
     gaps = con.execute("""SELECT min(fiscal_year), max(fiscal_year), list(DISTINCT fiscal_year ORDER BY fiscal_year) FROM statement_lines_current
                           WHERE ticker=? AND period_type='FY'""", [ticker]).fetchone()
     if gaps[0]:
         missing = [y for y in range(gaps[0], gaps[1] + 1) if y not in gaps[2]]
         if missing:
-            add("third_party", "note", f"The third-party annual data has no year(s) {', '.join(str(y) for y in missing)} for this company, so long-run trends skip them.")
+            add("third_party", "note", f"Third-party history has no data for {', '.join(str(y) for y in missing)}, so long-run trends skip those years.")
     rounded = con.execute("""SELECT count(*) FILTER (value % 1000000 = 0), count(*) FROM statement_lines_current
                              WHERE ticker=? AND period_type='FY' AND fiscal_year=? AND value IS NOT NULL AND unit='NGN' AND abs(value) >= 1000000""", [ticker, fy]).fetchone()
     if rounded[1] and unit == "NGN_thousand" and rounded[0] == rounded[1]:
-        add("third_party", "note", "The third-party provider stores this company's figures rounded to whole millions of naira, while the audited report is in thousands; differences below ₦1m are treated as rounding.")
+        add("third_party", "note", "Third-party figures are rounded to ₦1m, so smaller differences are treated as rounding.")
 
     # ---- the peer comparison ----
     pp = con.execute("SELECT count(*), max(peer_n), bool_or(small_set) FROM peer_position WHERE ticker=? AND fiscal_year=? AND position NOT IN ('not meaningful')", [ticker, fy]).fetchone()
     if pp and pp[0]:
         ind = con.execute("SELECT gics_industry FROM companies WHERE ticker=?", [ticker]).fetchone()
         peers = [r for r in con.execute("SELECT ticker, conflict_check FROM companies WHERE gics_industry=? AND ticker<>?", [ind[0], ticker]).fetchall()] if ind and ind[0] else []
-        add("peers", "note", f"Peer comparison, {ind[0] if ind else 'industry'}: {len(peers)} peer(s). All figures come from the same third-party data for every company in the group, including this one, so definitions and rounding match; "
-            "they are not audited figures, and ratios needing lines the provider does not give (such as depreciation, lease liabilities or owners' equity) are shown as not meaningful. Position says where a number sits against the peers, not whether that is good or bad.")
+        add("peers", "note", f"Peers: {len(peers)} companies in {ind[0] if ind else 'the industry'}, all compared on the same third-party data, which is not audited. Above, near or below says where a figure sits, not whether it is good or bad.")
         if pp[2]:
-            add("peers", "note", f"The peer set is small (at most {pp[1]} peers), so medians and positions are indicative only.")
-        unchecked = [t for t, c in peers if c != "pass"]
+            add("peers", "note", f"With at most {pp[1]} peers, medians are indicative only.")
+        cfg = {c["ticker"]: c.get("conflict_check") for c in yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())["companies"]}
+        unchecked = [t for t, _ in peers if cfg.get(t) != "pass"]          # config/companies.yaml is the record of the analyst's conflict checks
         if unchecked:
-            add("peers", "important", f"{len(unchecked)} peer(s) have no conflict check recorded, so peer names and values are for internal use only and are not published until each is recorded as pass.")
+            add("peers", "important", f"{len(unchecked)} peer(s) have no conflict check recorded, so peer figures stay internal.")
         for t, _ in peers:
             ok = con.execute("SELECT count(*) FILTER (status='ok'), count(*) FROM comparison_ratios WHERE ticker=? AND fiscal_year=?", [t, fy]).fetchone()
             if ok[1] == 0:
-                add("peers", "note", f"A peer has no data for FY{fy} in the third-party source, so it is left out of this year's comparison.")
+                add("peers", "note", f"One peer has no third-party data for FY{fy} and is left out.")
             elif ok[0] < 0.5 * max(1, con.execute("SELECT count(*) FILTER (status='ok') FROM comparison_ratios WHERE ticker=? AND fiscal_year=?", [ticker, fy]).fetchone()[0]):
-                add("peers", "note", f"A peer's third-party data for FY{fy} is mostly blank ({ok[0]} of {ok[1]} ratios computable), so it adds little to the comparison.")
+                add("peers", "note", f"One peer's FY{fy} data is mostly blank ({ok[0]} of {ok[1]} ratios), so it adds little.")
 
     # ---- notes written by a person ----
     notes = yaml.safe_load(notes_path.read_text()) if notes_path.exists() else {}
@@ -247,11 +257,11 @@ def save(con, ticker: str, fy: int, items: list[dict]) -> None:
 
 
 def to_markdown(ticker: str, fy: int, items: list[dict]) -> str:
+    """Bullets, the ones needing attention first, each ending with its tag; then a key that explains each tag used."""
     order = {"important": 0, "note": 1, "standard": 2}
     lines = [f"## Data notes and disclaimers: {ticker} FY{fy}", ""]
-    for sev, title in (("important", "Important: items to examine"), ("note", "Notes on the data and its preparation"), ("standard", "Standard disclaimers")):
-        group = [i for i in items if i["severity"] == sev]
-        if group:
-            lines += [f"### {title}", ""]
-            lines += [f"- {i['text']}" + (f" *(Source: {i['source_ref']})*" if i["source_ref"] else "") for i in group] + [""]
-    return "\n".join(lines)
+    for i in sorted(items, key=lambda i: order.get(i["severity"], 3)):
+        lines.append(f"- {i['text']} `{i.get('tag') or TAGS.get(i['category'], (i['category'],))[0]}`" + (" (needs attention)" if i["severity"] == "important" else ""))
+    used = sorted({i["category"] for i in items}, key=lambda c: list(TAGS).index(c) if c in TAGS else 99)
+    lines += ["", "| Tag | What it covers |", "|---|---|"] + [f"| {TAGS[c][0]} | {TAGS[c][1]} |" for c in used if c in TAGS]
+    return "\n".join(lines) + "\n"

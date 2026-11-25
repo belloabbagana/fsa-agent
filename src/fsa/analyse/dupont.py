@@ -5,7 +5,7 @@ ROE = tax burden x interest burden x operating margin x asset turnover x equity 
   interest burden   profit before tax / operating profit             (how much of operating profit survives finance costs and items below it)
   operating margin  operating profit / revenue
   asset turnover    revenue / average total assets
-  equity multiplier average total assets / average owners' equity    (financial leverage)
+  financial leverage average total assets / average owners' equity (also called the equity multiplier)
   owners' share     profit attributable to owners / profit for the year (1.00 when there is no minority interest; keeps the identity exact)
 
 Code does all arithmetic. The change in ROE between two years is split with the log method: each stage gets
@@ -24,7 +24,7 @@ from fsa.map.model_proposer import ask, verify_model
 from fsa.warehouse.db import ROOT
 
 STAGES = [("tax_burden", "Tax burden", "x"), ("interest_burden", "Interest burden", "x"), ("operating_margin", "Operating margin", "pct"),
-          ("asset_turnover", "Asset turnover", "x"), ("equity_multiplier", "Equity multiplier", "x")]
+          ("asset_turnover", "Asset turnover", "x"), ("equity_multiplier", "Financial leverage", "x")]
 OWNERS = ("owners_share", "Owners' share of profit", "x")
 CONTEXT = ["core_operating_margin", "effective_tax_rate", "interest_cover", "debt_to_equity", "revenue_growth", "net_profit_growth",
            "translation_reserve_share_of_equity", "fx_share_of_operating_profit", "biological_fv_share_of_operating_profit", "monetary_position_share_of_pretax_profit"]
@@ -106,11 +106,11 @@ SYSTEM = (
     "You explain what drives a company's return on equity (ROE) to a CFA-trained analyst, using only the five-stage DuPont figures supplied. Rules:\n"
     "1. Use ONLY figures given, copied exactly as shown in 'show'. Never calculate, round differently or state a number that is not listed. Amounts are N millions.\n"
     "2. Neutral wording. These are items to examine, never accusations. No buy, sell, hold or recommendation. Do not imply fraud, manipulation or wrongdoing.\n"
-    "3. The 'contributions' split the change in ROE (percentage points) between stages and add up to the change. Name the stages by plain words: tax burden, interest burden, operating margin, asset turnover, equity multiplier. Never use identifiers or underscores.\n"
+    "3. The 'contributions' split the change in ROE (percentage points) between stages and add up to the change. Name the stages by plain words: tax burden, interest burden, operating margin, asset turnover, financial leverage. Never use identifiers or underscores.\n"
     "4. Say what the figures show, not why it happened. A cause may only be offered as something to examine. Do not use 'because', 'due to' or 'driven by' for anything other than the supplied contribution figures.\n"
     "5. Where core_operating_margin is below operating_margin, say the operating margin includes gains outside core trading. Where translation_reserve_share_of_equity is high, say equity includes a translation reserve. Use only the figures supplied.\n"
     "6. No judgement words the figures do not establish (large, sharp, heavy, strong, weak, concerning, improvement).\n"
-    "7. Do not describe leverage as good or bad. 'equity multiplier' is average total assets divided by average owners' equity; 'leverage adds' is ROE minus ROE before leverage.\n"
+    "7. Do not describe leverage as good or bad. Call equity_multiplier 'financial leverage' (average total assets divided by average owners' equity); 'leverage adds' is ROE minus ROE before leverage.\n"
     "Reply with JSON only: {\"summary\": \"3 to 5 sentences on what drives ROE across the years\", \"years\": {\"<year>\": \"2 to 3 sentences for that year\"}, \"to_examine\": [\"question 1\", \"question 2\"]}. Include a 'years' entry only for years that have figures.")
 
 
@@ -192,7 +192,7 @@ def to_markdown(data: dict, words: dict | None = None) -> list[str]:
     for k, name, _ in STAGES + [OWNERS]:
         L.append(f"| {name} | " + " | ".join(_f(k, y["legs"][k]) for y in ys) + " |")
     L += ["| **ROE (average owners' equity)** | " + " | ".join(f"**{y['roe']:,.1f}%**" for y in ys) + " |",
-          "| ROE before leverage (ROE / equity multiplier) | " + " | ".join(f"{y['roe_before_leverage']:,.1f}%" for y in ys) + " |",
+          "| ROE before leverage (ROE / financial leverage) | " + " | ".join(f"{y['roe_before_leverage']:,.1f}%" for y in ys) + " |",
           "| Leverage adds (percentage points) | " + " | ".join(f"{y['leverage_adds_pp']:,.1f}" for y in ys) + " |", "",
           "*The five stages and the owners' share multiply to ROE. Identity gap (percentage points): " + ", ".join(f"FY{y['fiscal_year']} {y['identity_gap_pp']:.4f}" for y in ys) + ".*", ""]
     ok = [c for c in data["changes"] if c["status"] == "ok"]
@@ -218,7 +218,7 @@ def to_markdown(data: dict, words: dict | None = None) -> list[str]:
 def peers_markdown(t: dict) -> str:
     L = [f"# DuPont, {t['group']} peers, FY{t['fiscal_year']} (INTERNAL DRAFT)", "",
          f"> {t['basis']}. Peer names stay internal until each has a conflict check recorded as pass (project rule 3). Peers have no audited extraction here, so ROE is on total equity and there is no owners' share.", "",
-         "| Company | Check | Tax burden | Interest burden | Operating margin | Asset turnover | Equity multiplier | ROE | Biggest mover of the change in ROE |", "|---|---|---:|---:|---:|---:|---:|---:|---|"]
+         "| Company | Check | Tax burden | Interest burden | Operating margin | Asset turnover | Financial leverage | ROE | Biggest mover of the change in ROE |", "|---|---|---:|---:|---:|---:|---:|---:|---|"]
     for tk, d in t["companies"].items():
         y, c = d["year"], d["change"]
         if not y:

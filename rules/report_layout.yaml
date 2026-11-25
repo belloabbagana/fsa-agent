@@ -25,7 +25,7 @@ scorecards:
       - {label: Operating ROA, expr: operating_roa, unit: pct}
       - {label: "DuPont: tax burden (profit / pre-tax profit)", expr: tax_burden, unit: x}
       - {label: "DuPont: interest burden (pre-tax / operating profit)", expr: interest_burden, unit: x}
-      - {label: "DuPont: equity multiplier", expr: equity_multiplier, unit: x}
+      - {label: "DuPont: financial leverage (assets / equity)", expr: equity_multiplier, unit: x}
       - {label: Administrative costs / revenue, expr: admin_cost_to_revenue, unit: pct}
       - {label: Selling and distribution / revenue, expr: selling_distribution_to_revenue, unit: pct}
       - {label: Finance costs / revenue, expr: finance_cost_to_revenue, unit: pct}
@@ -101,3 +101,121 @@ usd_view:
     - {label: Total equity, expr: BS_TOTAL_EQUITY, basis: close}
     - {label: Cash, expr: BS_CASH, basis: close}
     - {label: Net debt (excludes leases), expr: NET_DEBT, basis: close}
+
+# ------------------------------------------------------------------ dashboard: statements overview (amounts only, N millions as printed)
+statements:
+  income_statement:
+    title: Income statement
+    rows:
+      - {label: Revenue, expr: PL_REVENUE, unit: m}
+      - {label: Cost of sales, expr: PL_COST_OF_SALES, unit: m}
+      - {label: Gross profit, expr: PL_GROSS_PROFIT, unit: m}
+      - {label: Administrative expenses, expr: PL_ADMIN_EXPENSES, unit: m}
+      - {label: Selling and distribution expenses, expr: PL_SELLING_DISTRIBUTION, unit: m}
+      - {label: Operating profit, expr: PL_OPERATING_PROFIT, unit: m}
+      - {label: Finance income, expr: PL_FINANCE_INCOME, unit: m}
+      - {label: Finance costs, expr: PL_FINANCE_COSTS, unit: m}
+      - {label: Profit before tax, expr: PL_PROFIT_BEFORE_TAX, unit: m}
+      - {label: Income tax, expr: PL_INCOME_TAX, unit: m}
+      - {label: Profit for the year, expr: PL_PROFIT_FOR_YEAR, unit: m}
+      - {label: "  attributable to owners", expr: PL_ATTRIB_OWNERS, unit: m}
+      - {label: "EBITDA (calculated)", expr: EBITDA, unit: m}
+  balance_sheet:
+    title: Balance sheet
+    rows:
+      - {label: Property, plant and equipment, expr: BS_PPE, unit: m}
+      - {label: Total non-current assets, expr: BS_TOTAL_NC_ASSETS, unit: m}
+      - {label: Inventories, expr: BS_INVENTORIES, unit: m}
+      - {label: Trade receivables, expr: BS_TRADE_RECEIVABLES, unit: m}
+      - {label: Cash, expr: BS_CASH, unit: m}
+      - {label: Total current assets, expr: BS_TOTAL_CURRENT_ASSETS, unit: m}
+      - {label: Total assets, expr: BS_TOTAL_ASSETS, unit: m}
+      - {label: Total equity, expr: BS_TOTAL_EQUITY, unit: m}
+      - {label: Non-current borrowings, expr: BS_BORROWINGS_NC, unit: m}
+      - {label: Current borrowings, expr: BS_BORROWINGS_C, unit: m}
+      - {label: Trade payables, expr: BS_TRADE_PAYABLES, unit: m}
+      - {label: Total current liabilities, expr: BS_TOTAL_CURRENT_LIABILITIES, unit: m}
+      - {label: Total liabilities, expr: BS_TOTAL_LIABILITIES, unit: m}
+      - {label: "Net debt (calculated, excludes leases)", expr: NET_DEBT, unit: m}
+  cash_flow:
+    title: Cash flow statement
+    rows:
+      - {label: Operating cash flow, expr: CF_OPERATING, unit: m}
+      - {label: "Capital expenditure (shown positive)", expr: CAPEX, unit: m}
+      - {label: "Free cash flow (calculated)", expr: FCF, unit: m}
+      - {label: Investing cash flow, expr: CF_INVESTING, unit: m}
+      - {label: Financing cash flow, expr: CF_FINANCING, unit: m}
+      - {label: Dividends paid, expr: CF_DIVIDENDS_PAID, unit: m}
+
+# ------------------------------------------------------------------ dashboard: ratio groups
+ratio_groups:
+  profitability:
+    title: Profitability
+    rows:
+      - {label: Gross margin, expr: gross_margin, unit: pct}
+      - {label: EBITDA margin, expr: ebitda_margin, unit: pct}
+      - {label: Operating margin, expr: operating_margin, unit: pct}
+      - {label: "Core operating margin (excludes FX and fair-value gains)", expr: core_operating_margin, unit: pct}
+      - {label: Pre-tax margin, expr: pretax_margin, unit: pct}
+      - {label: Net margin, expr: net_margin, unit: pct}
+      - {label: Effective tax rate, expr: effective_tax_rate, unit: pct}
+  performance:
+    title: Returns and performance
+    rows:
+      - {label: Return on equity (ROE), expr: roe, unit: pct}
+      - {label: Return on assets (ROA), expr: roa, unit: pct}
+      - {label: Return on invested capital (ROIC), expr: roic, unit: pct}
+      - {label: Return on capital employed (ROCE), expr: roce, unit: pct}
+      - {label: Operating return on assets, expr: operating_roa, unit: pct}
+      - {label: Revenue growth, expr: revenue_growth, unit: pct}
+      - {label: Net profit growth, expr: net_profit_growth, unit: pct}
+  activity:
+    title: Activity (efficiency)
+    rows:
+      - {label: Asset turnover, expr: asset_turnover, unit: x}
+      - {label: Fixed asset turnover, expr: fixed_asset_turnover, unit: x}
+      - {label: Receivables turnover, expr: receivables_turnover, unit: x}
+      - {label: Inventory turnover, expr: inventory_turnover, unit: x}
+      - {label: Payables turnover, expr: payables_turnover, unit: x}
+      - {label: Days sales outstanding, expr: dso, unit: days}
+      - {label: Days inventory outstanding, expr: dio, unit: days}
+      - {label: Days payables outstanding, expr: dpo, unit: days}
+      - {label: Cash conversion cycle (days), expr: cash_conversion_cycle, unit: days}
+      - {label: Working-capital turnover, expr: working_capital_turnover, unit: x}
+  liquidity:
+    title: Liquidity
+    rows:
+      - {label: Current ratio, expr: current_ratio, unit: x}
+      - {label: Quick ratio, expr: quick_ratio, unit: x}
+      - {label: Cash ratio, expr: cash_ratio, unit: x}
+      - {label: Operating cash flow / current liabilities, expr: cfo_to_current_liabilities, unit: x}
+  solvency:
+    title: Solvency (leverage)
+    rows:
+      - {label: Debt to equity, expr: debt_to_equity, unit: x}
+      - {label: Net debt to equity, expr: net_debt_to_equity, unit: x}
+      - {label: Debt to assets, expr: debt_to_assets, unit: x}
+      - {label: Net debt / EBITDA, expr: net_debt_to_ebitda, unit: x}
+      - {label: Interest cover (operating profit / finance costs), expr: interest_cover, unit: x}
+      - {label: EBITDA interest cover, expr: ebitda_interest_cover, unit: x}
+  cash_flow_quality:
+    title: Cash flow and earnings quality
+    rows:
+      - {label: Operating cash flow / profit, expr: cfo_to_net_income, unit: x}
+      - {label: Free cash flow / profit, expr: fcf_to_net_income, unit: x}
+      - {label: Free cash flow margin, expr: fcf_margin, unit: pct}
+      - {label: Capital expenditure / revenue, expr: capex_to_revenue, unit: pct}
+      - {label: Capital expenditure / depreciation, expr: capex_to_depreciation, unit: x}
+      - {label: Accruals ratio (share of assets), expr: accruals_ratio, unit: pct}
+      - {label: Non-core share of pre-tax profit, expr: non_core_share_of_pretax_profit, unit: pct}
+      - {label: Dividend payout (cash), expr: dividend_payout_cash, unit: pct}
+
+# ------------------------------------------------------------------ dashboard: peers (analyst only; the few ratios that matter, grouped)
+peer_groups:
+  Growth: [revenue_growth, net_profit_growth]
+  Profitability: [gross_margin, operating_margin, net_margin]
+  Returns: [roe, roa, roic]
+  Working capital: [dso, dio, dpo, cash_conversion_cycle]
+  Liquidity: [current_ratio, quick_ratio]
+  Leverage: [debt_to_equity, net_debt_to_ebitda, interest_cover]
+  Cash flow: [cfo_to_net_income, capex_to_revenue, dividend_payout_cash]

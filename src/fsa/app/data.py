@@ -84,7 +84,7 @@ def forbidden_words(cfg: dict) -> list[str]:
 
 
 def sanitize(rep: dict, cfg: dict) -> dict:
-    out = {k: v for k, v in rep.items() if k not in ("inputs_missing",)}
+    out = {k: v for k, v in rep.items() if k not in ("inputs_missing", "peers")}
     keep = []
     for f in rep["findings"]:
         if f["section"] == "K" or any(PEER_FACT.search(n["name"]) for n in f["numbers"]) or PEER_FACT.search(f.get("trigger") or ""):
@@ -95,7 +95,8 @@ def sanitize(rep: dict, cfg: dict) -> dict:
     out["data_notes"] = [n for n in rep["data_notes"] if n["category"] not in DROP_NOTE_CATEGORIES and not any(w in n["text"].lower() for w in bad)]
     if rep.get("ratings"):
         r = json.loads(json.dumps(rep["ratings"]))
-        r["data_quality"] = {"grade": r["data_quality"]["grade"], "why": "Based on mapping sign-off, the filing's own arithmetic, restatements and source cross-checks."}
+        inputs = {k: v for k, v in (r["data_quality"].get("inputs") or {}).items() if k not in ("peer_set_unchecked", "provider_differences")}
+        r["data_quality"] = {"grade": r["data_quality"]["grade"], "inputs": inputs}
         out["ratings"] = r
     out["viewer_note"] = "Public snapshot built from the company's audited annual report. Educational analysis, not investment advice."
     return out
