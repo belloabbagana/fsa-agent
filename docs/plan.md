@@ -93,5 +93,5 @@ The goal is a safe, working setup with data starting to land. No analysis yet.
 - Kobo terminal: link, export/API, terms.
 - NGN Market: API inclusion and redistribution terms (Session 1).
 - Back-test case selection (week 11). The brief's example is Oando's restated 2013–2014 accounts; this depends on older documents being obtainable.
-- A legal check before publishing findings that name real companies (not legal advice).
-- Employer policy on outside work and publications (Bello to check).
+- A legal check before publishing findings that name real companies (not legal advice). Bello: OK to proceed with building (25 Nov 2026); the check itself still happens before anything is published.
+- Employer policy on outside work and publications (Bello to check). Bello: OK to proceed with building (25 Nov 2026); nothing is published before it is checked.

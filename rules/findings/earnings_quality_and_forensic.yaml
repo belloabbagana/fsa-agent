@@ -107,7 +107,7 @@ rules:
     trigger: "restated_lines > 0"
     type: risk
     materiality: {fixed: medium, escalate_if: "restated_lines >= 5"}
-    facts: [restated_lines]
+    facts: [restated_lines, restated_detail]
     question: "What caused the restatement and which statement lines does it touch?"
     why: "Comparatives that differ from last year's filed figures need an explanation; restatements can reflect error correction or policy change."
     hypotheses:

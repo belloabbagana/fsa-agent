@@ -1,6 +1,6 @@
 # Macro data interface: contract between a future Macro Agent and the FSA Agent
 
-Status: **v0.1: all five decisions agreed 24 November 2026** · Written 24 November 2026 · The Macro Agent does not exist yet. This page fixes the contract so it can be built later without changing the FSA Agent.
+Status: **v0.1: all five decisions agreed 24 November 2026. Tables created and the two FX series loaded by hand on 25 November 2026 (IMF IFS official rates, vintage 2026-11-25-001); the CPI series is not loaded yet** · Written 24 November 2026 · The Macro Agent does not exist yet. This page fixes the contract so it can be built later without changing the FSA Agent.
 
 ## 1. Purpose and boundary
 

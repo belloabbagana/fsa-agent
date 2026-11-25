@@ -34,7 +34,8 @@ def show(v: float) -> str:
 
 
 def prompt_for(rec: dict) -> str:
-    figures = [{"name": f["name"], "show": show(f["value"]) if f["value"] is not None else "not available",
+    COUNTS = ("restated_lines", "later_restated_lines", "flags_tripped", "has_acquisition")
+    figures = [{"name": f["name"], "show": (str(int(f["value"])) if f["name"] in COUNTS else show(f["value"])) if f["value"] is not None else "not available",
                 **({"unit": f["unit"]} if f.get("unit") else {}), **({"meaning": f["meaning"]} if f.get("meaning") else {}), **({"where": "; ".join(f"{s['statement']} p.{s['page']} '{s['label']}'" for s in f["source"])} if isinstance(f.get("source"), list) else {})}
                for f in rec["facts"]]
     body = {"company": rec["ticker"], "fiscal_year": rec["fiscal_year"], "amounts_unit": "N millions (account amounts); ratios carry their own unit", "title": rec["title"], "what_triggered_it": rec["trigger"],

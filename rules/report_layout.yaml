@@ -87,3 +87,17 @@ section_titles:
   K: Peer comparison
   L: Key questions for further investigation
   M: Final conclusion
+# USD view (information only; macro interface decision 1: official rate). Income-statement and cash-flow rows are converted at the
+# annual-average rate of their year, balance-sheet rows at the year-end rate. Rates, source and vintage are named in the report.
+# Nominal naira converted at the official rate: it shows what the naira figures were worth in dollars, not a restatement for inflation.
+usd_view:
+  rows:
+    - {label: Revenue, expr: PL_REVENUE, basis: avg}
+    - {label: Operating profit, expr: PL_OPERATING_PROFIT, basis: avg}
+    - {label: Profit for the year, expr: PL_PROFIT_FOR_YEAR, basis: avg}
+    - {label: Operating cash flow, expr: CF_OPERATING, basis: avg}
+    - {label: Free cash flow, expr: FCF, basis: avg}
+    - {label: Total assets, expr: BS_TOTAL_ASSETS, basis: close}
+    - {label: Total equity, expr: BS_TOTAL_EQUITY, basis: close}
+    - {label: Cash, expr: BS_CASH, basis: close}
+    - {label: Net debt (excludes leases), expr: NET_DEBT, basis: close}

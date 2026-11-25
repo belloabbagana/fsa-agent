@@ -136,11 +136,13 @@ def rate(spec: dict, ev: TriggerEvaluator) -> tuple[str, float | None, str]:
     return "low", measure, ""
 
 
-def text_rule(rule: dict, rep: dict | None) -> dict:
+def text_rule(rule: dict, rep: dict | None, notes: dict | None = None) -> dict:
     """State and evidence for a text rule, from the auditor's report read by code. Every quote was verified against the PDF text when it was read.
     Rules about the notes (A-05) stay NOT TESTED until the notes are read."""
     if rule["id"] == "A-05":
-        return {"reason": "the engine does not read the notes yet"}
+        if not notes or notes.get("status") != "ok":
+            return {"reason": "the notes have not been scanned (run: ./fsa scan-notes)" if not notes else notes.get("reason", "the notes scan found nothing to read")}
+        return {"state": "fired", "evidence": notes["evidence"]} if notes["evidence"] else {"state": "not fired"}
     if rep is None:
         return {"reason": "the auditor's report has not been read (run: ./fsa read-auditor-report)"}
     op = rep["opinion"]
@@ -169,11 +171,13 @@ def evaluate_rules(con, chart, ratio_rules, rules, ticker, fy) -> list[dict]:
     cur, prior, now, known, extra, lookup = build_context(con, chart, ratio_rules, ticker, fy)
     apath = ROOT / "data" / "interim" / ticker / f"FY{fy}" / "auditor_report.json"
     auditor = json.loads(apath.read_text()) if apath.exists() else None
+    npath = apath.with_name("notes_scan.json")
+    notes = json.loads(npath.read_text()) if npath.exists() else None
     out = []
     for r in rules:
         res = {"rule_id": r["id"], "title": r["title"], "section": r["section"], "state": "not tested", "materiality": None, "measure": None, "reason": "", "facts": "{}"}
         if r.get("kind") == "text":
-            res.update(text_rule(r, auditor))
+            res.update(text_rule(r, auditor, notes))
             if res["state"] == "fired":
                 res["materiality"], res["measure"], res["reason"] = rate(r["materiality"], TriggerEvaluator(cur, prior, ratio_rules["metrics"], now, known, extra, lookup))
             out.append(res)

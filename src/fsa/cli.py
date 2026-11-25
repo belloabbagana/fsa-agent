@@ -511,6 +511,30 @@ def cmd_write_findings(args) -> None:
     print(f"wrote {out / 'findings.md'}")
 
 
+def cmd_scan_notes(args) -> None:
+    from fsa.extract import notes_scan as ns
+    cfg = yaml.safe_load((ROOT / "config" / "companies.yaml").read_text())
+    targets = [(c["ticker"], fy) for c in cfg["companies"] if c.get("role") == "core" for fy in (2023, 2024, 2025)] if args.ticker == "all" else [(args.ticker, int(args.fy.upper().replace("FY", "")))]
+    for ticker, fy in targets:
+        pdf = ROOT / "data" / "raw" / ticker / f"FY{fy}" / f"{ticker}_FY{fy}_annual_report.pdf"
+        r = ns.scan(pdf)
+        out = ROOT / "data" / "interim" / ticker / f"FY{fy}"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "notes_scan.json").write_text(json.dumps(r, indent=2, ensure_ascii=False))
+        print(f"{ticker} FY{fy}: {r['status']} | notes from p.{r.get('notes_start_page')} | {r.get('mentions_found', 0)} mention(s)")
+        for e in r["evidence"][:4]:
+            print(f"     p.{e['page']} [{e['kind']}] {e['quote'][:150]}")
+
+
+def cmd_load_macro(args) -> None:
+    from fsa.macro import load as macro
+    con = connect()
+    got = macro.load(con)
+    print(f"loaded {got['rows']} macro rows as vintage {got['vintage_id']}")
+    for c in macro.cross_check(con, got["vintage_id"]):
+        print(f"   {c['year']}: IMF average {c['imf']:,.1f}, World Bank {c['world_bank']:,.1f} ({c['difference_pct']:+.3f}%) " + ("ok" if c["within_tolerance"] else "DIFFERS"))
+
+
 def cmd_dupont(args) -> None:
     from fsa.analyse import dupont as dp
     chart, con, ratio_rules = load_chart(), connect(), rat.load_rules()
@@ -678,6 +702,10 @@ def main() -> None:
     wf = sub.add_parser("write-findings", help="Write the prose for a company-year's finding candidates (model drafts, code checks)")
     wf.add_argument("ticker"); wf.add_argument("fy"); wf.add_argument("--model"); wf.add_argument("--limit", type=int, default=0)
     wf.add_argument("--min-materiality", default="medium", choices=["high", "medium", "low"]); wf.add_argument("--redo", action="store_true"); wf.add_argument("--ids", nargs="*", help="only these finding ids (with --redo rewrites just them)"); wf.set_defaults(func=cmd_write_findings)
+    sn = sub.add_parser("scan-notes", help="Scan the notes to the accounts for restatements, errors and policy changes (rule A-05); quotes carry their page")
+    sn.add_argument("ticker"); sn.add_argument("fy", nargs="?", default="FY0"); sn.set_defaults(func=cmd_scan_notes)
+    lm = sub.add_parser("load-macro", help="Load the official USD/NGN series from data/raw/macro into the warehouse as a new vintage")
+    lm.set_defaults(func=cmd_load_macro)
     dpn = sub.add_parser("dupont", help="Five-stage DuPont analysis of ROE with an exact split of each year's change, and a checked explanation")
     dpn.add_argument("ticker"); dpn.add_argument("fy", nargs="?", default="FY0"); dpn.add_argument("--model", default=None); dpn.add_argument("--no-model", action="store_true"); dpn.add_argument("--redo", action="store_true"); dpn.set_defaults(func=cmd_dupont)
     ra = sub.add_parser("read-auditor-report", help="Read the auditor's report from the annual-report PDF (opinion, going concern, emphasis, KAMs), quotes verified by code")

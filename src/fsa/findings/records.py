@@ -27,6 +27,27 @@ def _sources(con, ticker: str, fy: int) -> dict:
     return out
 
 
+def restated_facts(con, ticker: str, fy: int, limit: int = 6) -> list[dict]:
+    """The lines whose prior-year figure changed between the FY-1 report and the FY report's comparatives (largest first), two facts per line, in N millions."""
+    from fsa.report import disclosures as disc
+    factor = disc.FACTOR_TO_MILLIONS.get(disc._unit(con, ticker, fy), 1.0)
+    rows = con.execute("""SELECT statement, replace(check_name,'comparative:',''), expected, actual FROM integrity_checks
+                          WHERE ticker=? AND fiscal_year=? AND check_name LIKE 'comparative:%' AND status='fail' AND entity='group' AND expected IS NOT NULL AND actual IS NOT NULL
+                          ORDER BY abs(actual-expected) DESC""", [ticker, fy]).fetchall()
+    seen, out = set(), []
+    for st, lab, was, now in rows:
+        name = " ".join(lab.split())
+        if name in seen:
+            continue
+        seen.add(name)
+        where = f"{st.replace('_', ' ')}: comparative column of the FY{fy} report against the FY{fy - 1} report"
+        out += [{"name": f"{name}, FY{fy - 1} as first reported", "value": was * factor, "unit": "N millions", "source": where},
+                {"name": f"{name}, FY{fy - 1} as shown in the FY{fy} report", "value": now * factor, "unit": "N millions", "source": where}]
+        if len(seen) >= limit:
+            break
+    return out
+
+
 def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int) -> list[dict]:
     cur, prior, now, known, extra, lookup = build_context(con, chart, ratio_rules, ticker, fy)
     src = _sources(con, ticker, fy)
@@ -41,6 +62,9 @@ def build_records(con, chart, ratio_rules, rules, results, ticker: str, fy: int)
         ev = TriggerEvaluator(cur, prior, ratio_rules["metrics"], now, known, extra, lookup)
         facts = []
         for name in rule.get("facts", []):
+            if name == "restated_detail":
+                facts += restated_facts(con, ticker, fy)
+                continue
             try:
                 value = ev.ev(ast.parse(name, mode="eval").body)
                 entry = {"name": name, "value": value}

@@ -240,3 +240,33 @@ CREATE TABLE IF NOT EXISTS finding_candidates (
     rules_version VARCHAR,
     evaluated_at  TIMESTAMP DEFAULT current_timestamp
 );
+
+-- Macro data (contract: docs/macro_interface.md). Written by the loader today and by the future Macro Agent; the FSA Agent only reads.
+CREATE TABLE IF NOT EXISTS macro_series_catalog (
+    series_id     VARCHAR PRIMARY KEY,
+    name          VARCHAR NOT NULL,
+    definition    VARCHAR NOT NULL,      -- includes what the series is NOT
+    unit          VARCHAR NOT NULL,
+    frequency     VARCHAR NOT NULL,
+    basis_note    VARCHAR
+);
+CREATE TABLE IF NOT EXISTS macro_vintages (
+    vintage_id    VARCHAR PRIMARY KEY,
+    created_at    TIMESTAMP NOT NULL,
+    created_by    VARCHAR NOT NULL,
+    note          VARCHAR
+);
+CREATE TABLE IF NOT EXISTS macro_series (
+    series_id     VARCHAR NOT NULL,
+    period_start  DATE NOT NULL,
+    period_end    DATE NOT NULL,
+    value         DOUBLE,
+    unit          VARCHAR,
+    vintage_id    VARCHAR NOT NULL,
+    source_name   VARCHAR NOT NULL,
+    source_url    VARCHAR,
+    retrieved_at  TIMESTAMP,
+    source_sha256 VARCHAR,
+    quality_flag  VARCHAR NOT NULL,      -- ok | provisional | estimated | break_after
+    note          VARCHAR
+);
